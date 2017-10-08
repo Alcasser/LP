@@ -15,6 +15,8 @@
 
 #include <string>
 #include <iostream>
+#include <map>
+#include <vector>
 using namespace std;
 
 // struct to store information about tokens

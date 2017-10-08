@@ -150,12 +150,6 @@ extern void complete();
 #endif
 
 #ifdef __USE_PROTOS
-void instruction(AST**_root);
-#else
-extern void instruction();
-#endif
-
-#ifdef __USE_PROTOS
 void mountains(AST**_root);
 #else
 extern void mountains();
@@ -176,5 +170,4 @@ extern SetWordType zzerr9[];
 extern SetWordType zzerr10[];
 extern SetWordType zzerr11[];
 extern SetWordType setwd3[];
-extern SetWordType zzerr12[];
 extern SetWordType setwd4[];

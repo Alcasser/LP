@@ -16,6 +16,8 @@
 
 #include <string>
 #include <iostream>
+#include <map>
+#include <vector>
 using namespace std;
 
 // struct to store information about tokens
@@ -61,15 +63,21 @@ ANTLR_INFO
 //global structures
 AST *root;
 
+map<string,string> m;
+map<string,int> v;
 
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
   if (type == ID) {
-    attr->kind = "id";
+    attr->kind = "identifier";
     attr->text = text;
   }
   else if (type == NUM) {
     attr->kind = "intconst";
+    attr->text = text;
+  }
+  else if (type == PUJADA || type == CIM || type == BAIXADA) {
+    attr->kind = "part";
     attr->text = text;
   }
   else {
@@ -136,12 +144,52 @@ void ASTPrint(AST *a) {
     a = a->right;
   }
 }
+string genPeakValley(AST* node) {
+  if (node == NULL) return "";
+  int f, s, t;
+  f = stoi(child(node,0)->text.c_str());
+  s = stoi(child(node,1)->text.c_str());
+  t = stoi(child(node,2)->text.c_str());
+  if (node->kind == "Peak")
+  return string(f, '\/') + string(s, '\-') + string(t, '\\');
+  else
+  return string(f, '\\') + string(s, '\-') + string(t, '\/');
+}
+string evaluate(AST *a) {
+  if (a == NULL) return "NULL";
+  else if (a->kind == ";") {
+    return evaluate(child(a,0)) + evaluate(child(a,1));
+  } else if (a->kind == "*") {
+    int size = stoi(evaluate(child(a,0)));
+    char part = evaluate(child(a,1))[0];
+    return string(size, part);
+  } else if (a->kind == "identifier") {
+    return m[a->text.c_str()];
+  } else if (a->kind == "part") {
+    return a->text.c_str();
+  } else if (a->kind == "intconst") {
+    return a->text.c_str(); 
+  } else if (a->kind == "Valley" || a->kind == "Peak") {
+    return genPeakValley(a);
+  }
+}
 
+void execute(AST *a) {
+  if (a == NULL) {
+    return;
+  } else if (a->kind == "is") {
+    m[child(a,0)->text] = evaluate(child(a,1));
+  } else if (a->kind == "Draw") {
+    cout << evaluate(child(a,0)) << endl;
+  }
+  execute(a->right);
+}
 
 int main() {
   root = NULL;
   ANTLR(mountains(&root), stdin);
   ASTPrint(root);
+  execute(child(root,0));
 }
 
 void
@@ -793,51 +841,6 @@ fail:
 
 void
 #ifdef __USE_PROTOS
-instruction(AST**_root)
-#else
-instruction(_root)
-AST **_root;
-#endif
-{
-  zzRULE;
-  zzBLOCK(zztasp1);
-  zzMake0;
-  {
-  if ( (LA(1)==ID) ) {
-    assign(zzSTR); zzlink(_root, &_sibling, &_tail);
-  }
-  else {
-    if ( (LA(1)==IF) ) {
-      condic(zzSTR); zzlink(_root, &_sibling, &_tail);
-    }
-    else {
-      if ( (LA(1)==DSIM) ) {
-        draw(zzSTR); zzlink(_root, &_sibling, &_tail);
-      }
-      else {
-        if ( (LA(1)==WHILE) ) {
-          iter(zzSTR); zzlink(_root, &_sibling, &_tail);
-        }
-        else {
-          if ( (LA(1)==CSIM) ) {
-            complete(zzSTR); zzlink(_root, &_sibling, &_tail);
-          }
-          else {zzFAIL(1,zzerr12,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
-        }
-      }
-    }
-  }
-  zzEXIT(zztasp1);
-  return;
-fail:
-  zzEXIT(zztasp1);
-  zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd4, 0x4);
-  }
-}
-
-void
-#ifdef __USE_PROTOS
 mountains(AST**_root)
 #else
 mountains(_root)
@@ -852,8 +855,32 @@ AST **_root;
     zzBLOCK(zztasp2);
     zzMake0;
     {
-    while ( (setwd4[LA(1)]&0x8) ) {
-      instruction(zzSTR); zzlink(_root, &_sibling, &_tail);
+    for (;;) {
+      if ( !((setwd4[LA(1)]&0x4))) break;
+      if ( (LA(1)==ID) ) {
+        assign(zzSTR); zzlink(_root, &_sibling, &_tail);
+      }
+      else {
+        if ( (LA(1)==IF) ) {
+          condic(zzSTR); zzlink(_root, &_sibling, &_tail);
+        }
+        else {
+          if ( (LA(1)==DSIM) ) {
+            draw(zzSTR); zzlink(_root, &_sibling, &_tail);
+          }
+          else {
+            if ( (LA(1)==WHILE) ) {
+              iter(zzSTR); zzlink(_root, &_sibling, &_tail);
+            }
+            else {
+              if ( (LA(1)==CSIM) ) {
+                complete(zzSTR); zzlink(_root, &_sibling, &_tail);
+              }
+              else break; /* MR6 code for exiting loop "for sure" */
+            }
+          }
+        }
+      }
       zzLOOP(zztasp2);
     }
     zzEXIT(zztasp2);
@@ -865,6 +892,6 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd4, 0x10);
+  zzresynch(setwd4, 0x8);
   }
 }
