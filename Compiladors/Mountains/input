@@ -6,9 +6,10 @@ M3 is #M2;1*/;2*-;3*\;1*/;1*-;1*\
 M4 is Peak(2,4,2)
 M5 is Valley(3,4,3)
 
-if (Match(#M4,#M5) OR Height(#M12) == 3) 
-  M6 is #M4;#M5
-  Draw(#M6)
+
+
+k is 1*/;2*-;3*\
+if (NOT Wellformed(k))
+    Draw(#M5)
 endif
 
-Draw(1*/;2*-;3*\)

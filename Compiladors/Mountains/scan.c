@@ -17,6 +17,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <regex>
 using namespace std;
 
 // struct to store information about tokens

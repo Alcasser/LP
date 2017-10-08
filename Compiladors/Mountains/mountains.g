@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <regex>
 using namespace std;
 
 // struct to store information about tokens
@@ -124,6 +125,11 @@ string genPeakValley(AST* node) {
     return string(f, '\\') + string(s, '\-') + string(t, '\/');
 }
 
+bool mountainWellformed(string mountain) {
+  regex mountainRegex ("^((\\/+-+\\\\+)|(\\\\+-+\\/+))+$");
+  return regex_match(mountain, mountainRegex);
+}
+
 int mountainHeight(string mountain) {
   int max, min, level;
   max = min = level = 0;
@@ -193,7 +199,8 @@ string evaluate(AST *a, int& num, bool& cond) {
     cond = (h1 == h2);
   } else if (a->kind == "Height") {
     num = mountainHeight(evaluate(child(a,0), num, cond));
-    cout << "mountain size: " << num << endl;
+  } else if (a->kind == "Wellformed") {
+    cond = mountainWellformed(evaluate(child(a,0), num, cond));
   }
   return "";
 }
