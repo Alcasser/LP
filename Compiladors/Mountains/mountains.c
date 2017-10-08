@@ -155,32 +155,95 @@ string genPeakValley(AST* node) {
   else
   return string(f, '\\') + string(s, '\-') + string(t, '\/');
 }
-string evaluate(AST *a) {
-  if (a == NULL) return "NULL";
+
+int mountainHeight(string mountain) {
+  int max, min, level;
+  max = min = level = 0;
+  for (int i = 0; i < mountain.length(); i++) {
+    if (mountain[i] == '\/') ++level;
+    else if (mountain[i] == '\\') --level;
+    if (level > max) max = level;
+    if (level < min) min = level;
+  }
+  return (max - min);
+}
+
+string evaluate(AST *a, int& num, bool& cond) {
+  if (a == NULL) {
+    num = 0;
+    cond = false;
+    return "";
+  }
   else if (a->kind == ";") {
-    return evaluate(child(a,0)) + evaluate(child(a,1));
+    return evaluate(child(a,0), num, cond) + evaluate(child(a,1), num, cond);
   } else if (a->kind == "*") {
-    int size = stoi(evaluate(child(a,0)));
-    char part = evaluate(child(a,1))[0];
+    int size;
+    evaluate(child(a,0), size, cond);
+    char part = evaluate(child(a,1), num, cond)[0];
     return string(size, part);
   } else if (a->kind == "identifier") {
     return m[a->text.c_str()];
   } else if (a->kind == "part") {
     return a->text.c_str();
   } else if (a->kind == "intconst") {
-    return a->text.c_str(); 
+    num = stoi(a->text.c_str()); 
   } else if (a->kind == "Valley" || a->kind == "Peak") {
     return genPeakValley(a);
+  } else if (a->kind == "NOT") {
+    bool reseval;
+    evaluate(child(a,0), num, reseval);
+    cond = !reseval;
+  } else if (a->kind == "OR") {
+    bool ba, bb;
+    evaluate(child(a,0), num, ba);
+    evaluate(child(a,1), num, bb);
+    cond = ba || bb;
+  } else if (a->kind == "AND") {
+    bool ba, bb;
+    evaluate(child(a,0), num, ba);
+    evaluate(child(a,1), num, bb);
+    cond = ba && bb;
+  } else if (a->kind == "==") {
+    int ia, ib;
+    evaluate(child(a,0), ia, cond);
+    evaluate(child(a,1), ib, cond);
+    cond = (ia == ib);
+  } else if (a->kind == ">") {
+    int ia, ib;
+    evaluate(child(a,0), ia, cond);
+    evaluate(child(a,1), ib, cond);
+    cond = (ia > ib);
+  } else if (a->kind == "<") {
+    int ia, ib;
+    evaluate(child(a,0), ia, cond);
+    evaluate(child(a,1), ib, cond);
+    cond = (ia < ib);
+  } else if (a->kind == "Match") {
+    int h1, h2;
+    h1 = mountainHeight(evaluate(child(a,0), num, cond));
+    h2 = mountainHeight(evaluate(child(a,1), num, cond));
+    cond = (h1 == h2);
+  } else if (a->kind == "Height") {
+    num = mountainHeight(evaluate(child(a,0), num, cond));
+    cout << "mountain size: " << num << endl;
   }
+  return "";
 }
 
 void execute(AST *a) {
+  int num;
+  bool res;
   if (a == NULL) {
     return;
   } else if (a->kind == "is") {
-    m[child(a,0)->text] = evaluate(child(a,1));
+    m[child(a,0)->text] = evaluate(child(a,1), num, res);
   } else if (a->kind == "Draw") {
-    cout << evaluate(child(a,0)) << endl;
+    cout << evaluate(child(a,0), num, res) << endl;
+  } else if (a->kind == "if") {
+    evaluate(child(a,0), num, res);
+    if (res) {
+      execute(child(a,1)->down);
+    }
   }
   execute(a->right);
 }
