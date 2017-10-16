@@ -249,6 +249,11 @@ string evaluate(AST *a, int& num, bool& cond) {
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
     cond = (ia < ib);
+  } else if (a->kind == "+") {
+    int ia, ib;
+    evaluate(child(a,0), ia, cond);
+    evaluate(child(a,1), ib, cond);
+    num = ia + ib;
   } else if (a->kind == "Match") {
     int h1, h2;
     h1 = mountainHeight(evaluate(child(a,0), num, cond));
@@ -292,11 +297,22 @@ void execute(AST *a) {
   execute(a->right);
 }
 
+void descMountains(bool print) {
+  map<string, string>::iterator it;
+  for (it = m.begin(); it != m.end(); it++) {
+    string mountain = m[it->first];
+    if (mountainWellformed(mountain)) {
+      cout << "L'altitud final de " << it->first << " es: " << mountainHeight(mountain) << endl;
+    }
+  }
+}
+
 int main() {
   root = NULL;
   ANTLR(mountains(&root), stdin);
   ASTPrint(root);
   execute(child(root,0));
+  descMountains(false);
 }
 
 void
