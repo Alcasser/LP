@@ -38,8 +38,9 @@
 #define GTHAN 28
 #define LTHAN 29
 #define EQUAL 30
-#define COMA 31
-#define SPACE 32
+#define DIFF 31
+#define COMA 32
+#define SPACE 33
 
 #ifdef __USE_PROTOS
 void atom(AST**_root);

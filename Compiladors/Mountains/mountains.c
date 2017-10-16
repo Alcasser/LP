@@ -145,20 +145,9 @@ void ASTPrint(AST *a) {
     a = a->right;
   }
 }
-string genPeakValley(AST* node) {
-  if (node == NULL) return "";
-  int f, s, t;
-  f = stoi(child(node,0)->text.c_str());
-  s = stoi(child(node,1)->text.c_str());
-  t = stoi(child(node,2)->text.c_str());
-  if (node->kind == "Peak")
-  return string(f, '\/') + string(s, '\-') + string(t, '\\');
-  else
-  return string(f, '\\') + string(s, '\-') + string(t, '\/');
-}
+
 bool mountainWellformed(string mountain) {
   regex mountainRegex ("^((\\/+-+\\\\+)|(\\\\+-+\\/+))+$");
-  cout << "Matching to: " << mountain << endl;
   return regex_match(mountain, mountainRegex);
 }
 
@@ -174,9 +163,23 @@ int mountainHeight(string mountain) {
   return (max - min);
 }
 
+string completeMountain(string mountain) {
+  if (mountainWellformed(mountain)) return mountain;
+  else {
+    char last = mountain.back();
+    if (last == '\/' and mountainWellformed(mountain + "-\\")) return mountain + "-\\";
+    else if (last == '-') {
+      if (mountainWellformed(mountain + "\\")) return mountain + "\\";
+      if (mountainWellformed(mountain + "\/")) return mountain + "\/";
+    }
+    else if (mountainWellformed(mountain + "-\/")) return mountain + "-\/";
+  }
+  return "";
+}
+
 string evaluate(AST *a, int& num, bool& cond) {
   if (a == NULL) {
-    num = 0;
+    num = -1;
     cond = false;
     return "";
   }
@@ -188,13 +191,30 @@ string evaluate(AST *a, int& num, bool& cond) {
     char part = evaluate(child(a,1), num, cond)[0];
     return string(size, part);
   } else if (a->kind == "identifier") {
-    return m[a->text.c_str()];
+    if (m.count(a->text.c_str())) {
+      return m[a->text.c_str()];
+    } else {
+      num = v[a->text.c_str()];
+    }
   } else if (a->kind == "part") {
     return a->text.c_str();
   } else if (a->kind == "intconst") {
     num = stoi(a->text.c_str()); 
   } else if (a->kind == "Valley" || a->kind == "Peak") {
-    return genPeakValley(a);
+    int f, s, t;
+    string sf, ss, st;
+    f = s = t = -1;
+    sf = evaluate(child(a,0), f, cond);
+    ss = evaluate(child(a,1), s, cond);
+    st = evaluate(child(a,2), t, cond);
+    if (f == -1) f = stoi(sf);
+    if (s == -1) s = stoi(ss);
+    if (t == -1) t = stoi(st);
+    cout << f << s << t << endl;
+    if (a->kind == "Peak")
+    return string(f, '\/') + string(s, '\-') + string(t, '\\');
+    else
+    return string(f, '\\') + string(s, '\-') + string(t, '\/');
   } else if (a->kind == "NOT") {
     bool reseval;
     evaluate(child(a,0), num, reseval);
@@ -214,6 +234,11 @@ string evaluate(AST *a, int& num, bool& cond) {
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
     cond = (ia == ib);
+  } else if (a->kind == "!=") {
+    int ia, ib;
+    evaluate(child(a,0), ia, cond);
+    evaluate(child(a,1), ib, cond);
+    cond = (ia != ib);
   } else if (a->kind == ">") {
     int ia, ib;
     evaluate(child(a,0), ia, cond);
@@ -239,17 +264,29 @@ string evaluate(AST *a, int& num, bool& cond) {
 
 void execute(AST *a) {
   int num;
+  string mountain;
   bool res;
   if (a == NULL) {
     return;
   } else if (a->kind == "is") {
-    m[child(a,0)->text] = evaluate(child(a,1), num, res);
+    mountain = evaluate(child(a,1), num, res);
+    if (mountain.empty()) v[child(a,0)->text] = num;
+    else m[child(a,0)->text] = mountain;
   } else if (a->kind == "Draw") {
     cout << evaluate(child(a,0), num, res) << endl;
+  } else if (a->kind == "Complete") {
+    mountain = completeMountain(evaluate(child(a,0), num, res));
+    if (!mountain.empty()) m[child(a,0)->text] = mountain;
   } else if (a->kind == "if") {
     evaluate(child(a,0), num, res);
     if (res) {
       execute(child(a,1)->down);
+    }
+  } else if (a->kind == "while") {
+    evaluate(child(a,0), num, res);
+    while (res) {
+      execute(child(a,1)->down);
+      evaluate(child(a,0), num, res);
     }
   }
   execute(a->right);
@@ -667,7 +704,12 @@ AST **_root;
             if ( (LA(1)==EQUAL) ) {
               zzmatch(EQUAL); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
             }
-            else {zzFAIL(1,zzerr7,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+            else {
+              if ( (LA(1)==DIFF) ) {
+                zzmatch(DIFF); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
+              }
+              else {zzFAIL(1,zzerr7,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+            }
           }
         }
         zzEXIT(zztasp3);

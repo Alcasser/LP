@@ -208,6 +208,11 @@ Complete
 		NLA = EQUAL;
 	>>
 
+!=
+	<<
+		NLA = DIFF;
+	>>
+
 ,
 	<<
 		NLA = COMA;
