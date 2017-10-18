@@ -63,36 +63,6 @@ zzerraction()
 		NLA = 1;
 	>>
 
-[0-9]+
-	<<
-		NLA = NUM;
-	>>
-
-\*
-	<<
-		NLA = MULT;
-	>>
-
-\/
-	<<
-		NLA = PUJADA;
-	>>
-
-\-
-	<<
-		NLA = CIM;
-	>>
-
-\\
-	<<
-		NLA = BAIXADA;
-	>>
-
-;
-	<<
-		NLA = CONCAT;
-	>>
-
 AND
 	<<
 		NLA = AND;
@@ -168,14 +138,44 @@ Complete
 		NLA = CSIM;
 	>>
 
-[a-zA-Z0-9]+
+#
+	<<
+		NLA = ALM;
+	>>
+
+[a-zA-Z][a-zA-Z0-9]*
 	<<
 		NLA = ID;
 	>>
 
-#
+[0-9]+
 	<<
-		NLA = ALM;
+		NLA = NUM;
+	>>
+
+\*
+	<<
+		NLA = MULT;
+	>>
+
+\/
+	<<
+		NLA = PUJADA;
+	>>
+
+\-
+	<<
+		NLA = CIM;
+	>>
+
+\\
+	<<
+		NLA = BAIXADA;
+	>>
+
+;
+	<<
+		NLA = CONCAT;
 	>>
 
 \+

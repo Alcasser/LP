@@ -9,29 +9,29 @@
  * ANTLR Version 1.33MR33
  */
 #define zzEOF_TOKEN 1
-#define NUM 2
-#define MULT 3
-#define PUJADA 4
-#define CIM 5
-#define BAIXADA 6
-#define CONCAT 7
-#define AND 8
-#define OR 9
-#define NOT 10
-#define IF 11
-#define ENDIF 12
-#define WHILE 13
-#define ENDWHILE 14
-#define ASIG 15
-#define MSIM 16
-#define WSIM 17
-#define HSIM 18
-#define DSIM 19
-#define PSIM 20
-#define VSIM 21
-#define CSIM 22
-#define ID 23
-#define ALM 24
+#define AND 2
+#define OR 3
+#define NOT 4
+#define IF 5
+#define ENDIF 6
+#define WHILE 7
+#define ENDWHILE 8
+#define ASIG 9
+#define MSIM 10
+#define WSIM 11
+#define HSIM 12
+#define DSIM 13
+#define PSIM 14
+#define VSIM 15
+#define CSIM 16
+#define ALM 17
+#define ID 18
+#define NUM 19
+#define MULT 20
+#define PUJADA 21
+#define CIM 22
+#define BAIXADA 23
+#define CONCAT 24
 #define PLUS 25
 #define LPAR 26
 #define RPAR 27
@@ -154,6 +154,12 @@ extern void complete();
 void mountains(AST**_root);
 #else
 extern void mountains();
+#endif
+
+#ifdef __USE_PROTOS
+void input(AST**_root);
+#else
+extern void input();
 #endif
 
 #endif

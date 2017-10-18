@@ -67,6 +67,10 @@ AST *root;
 map<string,string> m;
 map<string,int> v;
 
+//errors
+const int UNDEFINED_VARIABLE = 0;
+const int WRONG_CONCATENATION = 1;
+
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
   if (type == ID) {
@@ -177,14 +181,35 @@ string completeMountain(string mountain) {
   return "";
 }
 
-string evaluate(AST *a, int& num, bool& cond) {
+string trowError(int error, string extras) {
+  string emessage = "";
+  switch(error) {
+    case UNDEFINED_VARIABLE:
+    emessage = "Undefined variable ";
+    break;
+    case WRONG_CONCATENATION:
+    emessage = "Valid concatenations are only with defined mountains, parts, Peaks or Valleys";
+    break;
+  }
+  if (!extras.empty()) emessage += extras;
+  return emessage;
+}
+
+string evaluate(AST *a, int& num, bool& cond) throw(string) {
   if (a == NULL) {
     num = -1;
     cond = false;
     return "";
   }
   else if (a->kind == ";") {
-    return evaluate(child(a,0), num, cond) + evaluate(child(a,1), num, cond);
+    string part1, part2;
+    part1 = evaluate(child(a,0), num, cond);
+    part2 = evaluate(child(a,1), num, cond);
+    if (part1.empty() or part2.empty()) {
+      throw trowError(WRONG_CONCATENATION, "");
+    } else {
+      return part1 + part2;
+    }
   } else if (a->kind == "*") {
     int size;
     evaluate(child(a,0), size, cond);
@@ -193,8 +218,10 @@ string evaluate(AST *a, int& num, bool& cond) {
   } else if (a->kind == "identifier") {
     if (m.count(a->text.c_str())) {
       return m[a->text.c_str()];
-    } else {
+    } else if (v.count(a->text.c_str())){
       num = v[a->text.c_str()];
+    } else {
+      throw trowError(UNDEFINED_VARIABLE, a->text.c_str());
     }
   } else if (a->kind == "part") {
     return a->text.c_str();
@@ -267,34 +294,38 @@ string evaluate(AST *a, int& num, bool& cond) {
   return "";
 }
 
-void execute(AST *a) {
-  int num;
-  string mountain;
-  bool res;
-  if (a == NULL) {
-    return;
-  } else if (a->kind == "is") {
-    mountain = evaluate(child(a,1), num, res);
-    if (mountain.empty()) v[child(a,0)->text] = num;
-    else m[child(a,0)->text] = mountain;
-  } else if (a->kind == "Draw") {
-    cout << evaluate(child(a,0), num, res) << endl;
-  } else if (a->kind == "Complete") {
-    mountain = completeMountain(evaluate(child(a,0), num, res));
-    if (!mountain.empty()) m[child(a,0)->text] = mountain;
-  } else if (a->kind == "if") {
-    evaluate(child(a,0), num, res);
-    if (res) {
-      execute(child(a,1)->down);
-    }
-  } else if (a->kind == "while") {
-    evaluate(child(a,0), num, res);
-    while (res) {
-      execute(child(a,1)->down);
+void execute(AST *a) throw(string) {
+  try {
+    int num;
+    string mountain;
+    bool res;
+    if (a == NULL) {
+      return;
+    } else if (a->kind == "is") {
+      mountain = evaluate(child(a,1), num, res);
+      if (mountain.empty()) v[child(a,0)->text] = num;
+      else m[child(a,0)->text] = mountain;
+    } else if (a->kind == "Draw") {
+      cout << evaluate(child(a,0), num, res) << endl;
+    } else if (a->kind == "Complete") {
+      mountain = completeMountain(evaluate(child(a,0), num, res));
+      if (!mountain.empty()) m[child(a,0)->text] = mountain;
+    } else if (a->kind == "if") {
       evaluate(child(a,0), num, res);
+      if (res) {
+        execute(child(a,1)->down);
+      }
+    } else if (a->kind == "while") {
+      evaluate(child(a,0), num, res);
+      while (res) {
+        execute(child(a,1)->down);
+        evaluate(child(a,0), num, res);
+      }
     }
+    execute(a->right);
+  } catch (string error) {
+    throw;
   }
-  execute(a->right);
 }
 
 void descMountains(bool print) {
@@ -309,10 +340,15 @@ void descMountains(bool print) {
 
 int main() {
   root = NULL;
-  ANTLR(mountains(&root), stdin);
+  ANTLR(input(&root), stdin);
   ASTPrint(root);
-  execute(child(root,0));
-  descMountains(false);
+  try {
+    execute(child(root,0));
+    descMountains(false);
+  } catch (string error) {
+    cout << "Error: " << error << endl;
+    cout << "Error occurred. Finishing execution" << endl;
+  }
 }
 
 void
@@ -1021,5 +1057,28 @@ fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
   zzresynch(setwd4, 0x8);
+  }
+}
+
+void
+#ifdef __USE_PROTOS
+input(AST**_root)
+#else
+input(_root)
+AST **_root;
+#endif
+{
+  zzRULE;
+  zzBLOCK(zztasp1);
+  zzMake0;
+  {
+  mountains(zzSTR); zzlink(_root, &_sibling, &_tail);
+  zzmatch(1); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
+  zzEXIT(zztasp1);
+  return;
+fail:
+  zzEXIT(zztasp1);
+  zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
+  zzresynch(setwd4, 0x10);
   }
 }

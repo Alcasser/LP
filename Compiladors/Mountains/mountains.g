@@ -35,6 +35,10 @@ AST *root;
 map<string,string> m;
 map<string,int> v;
 
+//errors
+const int UNDEFINED_VARIABLE = 0;
+const int WRONG_CONCATENATION = 1;
+
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
   if (type == ID) {
@@ -145,14 +149,35 @@ string completeMountain(string mountain) {
   return "";
 }
 
-string evaluate(AST *a, int& num, bool& cond) {
+string trowError(int error, string extras) {
+  string emessage = "";
+  switch(error) {
+    case UNDEFINED_VARIABLE:
+      emessage = "Undefined variable ";
+      break;
+    case WRONG_CONCATENATION:
+      emessage = "Valid concatenations are only with defined mountains, parts, Peaks or Valleys";
+      break;
+  }
+  if (!extras.empty()) emessage += extras;
+  return emessage;
+}
+
+string evaluate(AST *a, int& num, bool& cond) throw(string) {
   if (a == NULL) {
     num = -1;
     cond = false;
     return "";
   }
   else if (a->kind == ";") {
-    return evaluate(child(a,0), num, cond) + evaluate(child(a,1), num, cond);
+    string part1, part2;
+    part1 = evaluate(child(a,0), num, cond);
+    part2 = evaluate(child(a,1), num, cond);
+    if (part1.empty() or part2.empty()) {
+      throw trowError(WRONG_CONCATENATION, "");
+    } else {
+      return part1 + part2;
+    }
   } else if (a->kind == "*") {
     int size;
     evaluate(child(a,0), size, cond);
@@ -161,8 +186,10 @@ string evaluate(AST *a, int& num, bool& cond) {
   } else if (a->kind == "identifier") {
     if (m.count(a->text.c_str())) {
       return m[a->text.c_str()];
-    } else {
+    } else if (v.count(a->text.c_str())){
       num = v[a->text.c_str()];
+    } else {
+      throw trowError(UNDEFINED_VARIABLE, a->text.c_str());
     }
   } else if (a->kind == "part") {
     return a->text.c_str();
@@ -235,7 +262,8 @@ string evaluate(AST *a, int& num, bool& cond) {
   return "";
 }
 
-void execute(AST *a) {
+void execute(AST *a) throw(string) {
+  try {
    int num;
    string mountain;
    bool res;
@@ -263,6 +291,9 @@ void execute(AST *a) {
      }
    }
    execute(a->right);
+  } catch (string error) {
+    throw;
+  }
  }
 
 void descMountains(bool print) {
@@ -277,22 +308,21 @@ void descMountains(bool print) {
 
 int main() {
   root = NULL;
-  ANTLR(mountains(&root), stdin);
+  ANTLR(input(&root), stdin);
   ASTPrint(root);
-  execute(child(root,0));
-  descMountains(false);
+  try {
+    execute(child(root,0));
+    descMountains(false);
+  } catch (string error) {
+    cout << "Error: " << error << endl;
+    cout << "Error occurred. Finishing execution" << endl;
+  }
 }
 >>
 
 
 
 #lexclass START
-#token NUM "[0-9]+"
-#token MULT "\*"
-#token PUJADA "\/"
-#token CIM "\-"
-#token BAIXADA "\\"
-#token CONCAT ";"
 #token AND "AND"
 #token OR "OR"
 #token NOT "NOT"
@@ -308,8 +338,14 @@ int main() {
 #token PSIM "Peak"
 #token VSIM "Valley"
 #token CSIM "Complete"
-#token ID "[a-zA-Z0-9]+"
 #token ALM "#"
+#token ID "[a-zA-Z][a-zA-Z0-9]*"
+#token NUM "[0-9]+"
+#token MULT "\*"
+#token PUJADA "\/"
+#token CIM "\-"
+#token BAIXADA "\\"
+#token CONCAT ";"
 #token PLUS "\+"
 #token LPAR "\("
 #token RPAR "\)"
@@ -322,7 +358,7 @@ int main() {
 
 
 atom: NUM | (ALM! | )ID | height | match | wellformed;
-expr: atom ((PLUS^ | CIM^) atom)*;
+expr: atom ((PLUS^ | CIM^) atom)*; // ((PLUS | MINUS))
 
 match: MSIM^ LPAR! mountain COMA! mountain RPAR!;
 wellformed: WSIM^ LPAR! mountain RPAR!;
@@ -344,4 +380,5 @@ iter: WHILE^ LPAR! boolx RPAR! mountains ENDWHILE!;
 draw: DSIM^ LPAR! mountain RPAR!;
 complete: CSIM^ LPAR! mountain RPAR!;
 mountains: (assign | condic | draw | iter | complete)* << #0 = createASTlist(_sibling); >>;
+input: mountains "@";
 //mountains: (assign | condic | draw | iter | complete)* << #0 = createASTlist(_sibling); >>;
