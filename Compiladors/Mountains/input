@@ -1,3 +1,4 @@
-k is 4+1
-M1 is Peak(k, 2+2, k)
-M2 is M1;k*\;2*\
+M1 is 1*/
+Complete(M1)
+M2 is M1;1*/;2*-;50*\
+Draw(M2)

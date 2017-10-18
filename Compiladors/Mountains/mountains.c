@@ -229,14 +229,9 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     num = stoi(a->text.c_str()); 
   } else if (a->kind == "Valley" || a->kind == "Peak") {
     int f, s, t;
-    string sf, ss, st;
-    f = s = t = -1;
-    sf = evaluate(child(a,0), f, cond);
-    ss = evaluate(child(a,1), s, cond);
-    st = evaluate(child(a,2), t, cond);
-    if (f == -1) f = stoi(sf);
-    if (s == -1) s = stoi(ss);
-    if (t == -1) t = stoi(st);
+    evaluate(child(a,0), f, cond);
+    evaluate(child(a,1), s, cond);
+    evaluate(child(a,2), t, cond);
     cout << f << s << t << endl;
     if (a->kind == "Peak")
     return string(f, '\/') + string(s, '\-') + string(t, '\\');
@@ -992,7 +987,7 @@ AST **_root;
   {
   zzmatch(CSIM); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
   zzmatch(LPAR);  zzCONSUME;
-  mountain(zzSTR); zzlink(_root, &_sibling, &_tail);
+  zzmatch(ID); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
   zzmatch(RPAR);  zzCONSUME;
   zzEXIT(zztasp1);
   return;
