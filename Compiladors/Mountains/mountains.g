@@ -35,9 +35,17 @@ AST *root;
 map<string,string> m;
 map<string,int> v;
 
+//config
+const bool colors = true;
+
 //errors
 const int UNDEFINED_VARIABLE = 0;
 const int WRONG_CONCATENATION = 1;
+const int WRONG_ADDITION = 2;
+const int WRONG_COMPARATION = 3;
+const int WRONG_BOOLEAN_EXPRESSION = 4;
+const int WRONG_MOUNTAIN_FUNCTION = 5;
+const int WRONG_ASSIGNMENT = 6;
 
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
@@ -149,19 +157,36 @@ string completeMountain(string mountain) {
   return "";
 }
 
-string trowError(int error, string extras) {
+string throwError(int error, string extras) {
   string emessage = "";
   switch(error) {
     case UNDEFINED_VARIABLE:
-      emessage = "Undefined variable ";
+      emessage = "Undefined variable: ";
       break;
     case WRONG_CONCATENATION:
-      emessage = "Valid concatenations are only with defined mountains, parts, Peaks or Valleys";
+      emessage = "Valid concatenations are only allowed with defined mountains, parts, Peaks or Valleys.";
+      break;
+    case WRONG_ADDITION:
+      emessage = "Addition is only allowed with integers (constants, variables or heights).";
+      break;
+    case WRONG_COMPARATION:
+      emessage = "Expected an integer (constants, variables or heights) in operation: ";
+      break;
+    case WRONG_BOOLEAN_EXPRESSION:
+      emessage = "Expected a boolean expression in operation: ";
+      break;
+    case WRONG_MOUNTAIN_FUNCTION:
+      emessage = "Only mountain expressions or variables are allowed in function: ";
+      break;
+    case WRONG_ASSIGNMENT:
+      emessage = "Variables can only be assigned to positive integer values, mountain definitions or other variables";
       break;
   }
-  if (!extras.empty()) emessage += extras;
+  if (!extras.empty()) emessage += extras + '.';
+  if (colors) emessage = "\033[1;31m" + emessage + "\033[0m";
   return emessage;
 }
+
 
 string evaluate(AST *a, int& num, bool& cond) throw(string) {
   if (a == NULL) {
@@ -169,15 +194,14 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     cond = false;
     return "";
   }
-  else if (a->kind == ";") {
+  int tmp1 = -1;
+  string tmp2 = "";
+  if (a->kind == ";") {
     string part1, part2;
     part1 = evaluate(child(a,0), num, cond);
     part2 = evaluate(child(a,1), num, cond);
-    if (part1.empty() or part2.empty()) {
-      throw trowError(WRONG_CONCATENATION, "");
-    } else {
-      return part1 + part2;
-    }
+    if (part1.empty() or part2.empty()) throw throwError(WRONG_CONCATENATION, "");
+    return part1 + part2;
   } else if (a->kind == "*") {
     int size;
     evaluate(child(a,0), size, cond);
@@ -189,7 +213,7 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     } else if (v.count(a->text.c_str())){
       num = v[a->text.c_str()];
     } else {
-      throw trowError(UNDEFINED_VARIABLE, a->text.c_str());
+      throw throwError(UNDEFINED_VARIABLE, a->text.c_str());
     }
   } else if (a->kind == "part") {
     return a->text.c_str();
@@ -200,95 +224,122 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     evaluate(child(a,0), f, cond);
     evaluate(child(a,1), s, cond);
     evaluate(child(a,2), t, cond);
-    cout << f << s << t << endl;
     if (a->kind == "Peak")
       return string(f, '\/') + string(s, '\-') + string(t, '\\');
     else
       return string(f, '\\') + string(s, '\-') + string(t, '\/');
   } else if (a->kind == "NOT") {
     bool reseval;
-    evaluate(child(a,0), num, reseval);
+    tmp2 = evaluate(child(a,0), tmp1, reseval);
+    if (!tmp2.empty() or tmp1 != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
     cond = !reseval;
   } else if (a->kind == "OR") {
     bool ba, bb;
-    evaluate(child(a,0), num, ba);
-    evaluate(child(a,1), num, bb);
+    tmp2 = evaluate(child(a,0), tmp1, ba);
+    if (!tmp2.empty() or tmp1 != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
+    tmp2 = evaluate(child(a,1), tmp1, bb);
+    if (!tmp2.empty() or tmp1 != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
     cond = ba || bb;
   } else if (a->kind == "AND") {
     bool ba, bb;
-    evaluate(child(a,0), num, ba);
-    evaluate(child(a,1), num, bb);
+    tmp2 = evaluate(child(a,0), tmp1, ba);
+    if (!tmp2.empty() or tmp1 != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
+    tmp2 = evaluate(child(a,1), tmp1, bb);
+    if (!tmp2.empty() or tmp1 != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
     cond = ba && bb;
   } else if (a->kind == "==") {
     int ia, ib;
+    ia = ib = -1;
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
+    if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
     cond = (ia == ib);
   } else if (a->kind == "!=") {
     int ia, ib;
+    ia = ib = -1;
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
+    if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
     cond = (ia != ib);
   } else if (a->kind == ">") {
     int ia, ib;
+    ia = ib = -1;
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
+    if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
     cond = (ia > ib);
   } else if (a->kind == "<") {
     int ia, ib;
+    ia = ib = -1;
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
+    if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
     cond = (ia < ib);
   } else if (a->kind == "+") {
     int ia, ib;
+    ia = ib = -1;
     evaluate(child(a,0), ia, cond);
     evaluate(child(a,1), ib, cond);
+    if (ia < 0 or ib < 0) throw throwError(WRONG_ADDITION, "");
     num = ia + ib;
   } else if (a->kind == "Match") {
+    string m1 = evaluate(child(a,0), num, cond);
+    string m2 = evaluate(child(a,1), num, cond);
+    if (m1.empty() or m2.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
     int h1, h2;
-    h1 = mountainHeight(evaluate(child(a,0), num, cond));
-    h2 = mountainHeight(evaluate(child(a,1), num, cond));
+    h1 = mountainHeight(m1);
+    h2 = mountainHeight(m2);
     cond = (h1 == h2);
   } else if (a->kind == "Height") {
-    num = mountainHeight(evaluate(child(a,0), num, cond));
+    string m1 = evaluate(child(a,0), num, cond);
+    if (m1.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
+    num = mountainHeight(m1);
   } else if (a->kind == "Wellformed") {
-    cond = mountainWellformed(evaluate(child(a,0), num, cond));
+    string m1 = evaluate(child(a,0), num, cond);
+    if (m1.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
+    cond = mountainWellformed(m1);
   }
   return "";
 }
 
 void execute(AST *a) throw(string) {
   try {
-   int num;
-   string mountain;
+   int num = -1;
+   string mountain = "";
    bool res;
    if (a == NULL) {
      return;
    } else if (a->kind == "is") {
      mountain = evaluate(child(a,1), num, res);
-     if (mountain.empty()) v[child(a,0)->text] = num;
+     if (mountain.empty() and num == -1) throw throwError(WRONG_ASSIGNMENT, "");
+     else if (mountain.empty()) v[child(a,0)->text] = num;
      else m[child(a,0)->text] = mountain;
    } else if (a->kind == "Draw") {
-     cout << evaluate(child(a,0), num, res) << endl;
+     mountain = evaluate(child(a,0), num, res);
+     if (mountain.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
+     cout << mountain << endl;
    } else if (a->kind == "Complete") {
-     mountain = completeMountain(evaluate(child(a,0), num, res));
-     if (!mountain.empty()) m[child(a,0)->text] = mountain;
+     mountain = evaluate(child(a,0), num, res);
+     if (mountain.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
+     m[child(a,0)->text] = completeMountain(mountain);
    } else if (a->kind == "if") {
-     evaluate(child(a,0), num, res);
+     if (!evaluate(child(a,0), num, res).empty()) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
+     if (num != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
      if (res) {
        execute(child(a,1)->down);
      }
    } else if (a->kind == "while") {
-     evaluate(child(a,0), num, res);
+     if (!evaluate(child(a,0), num, res).empty()) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
+     if (num != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
      while (res) {
        execute(child(a,1)->down);
        evaluate(child(a,0), num, res);
      }
    }
-   execute(a->right);
   } catch (string error) {
-    throw;
+    cout << "Error: " << error << endl;
   }
+  execute(a->right);
  }
 
 void descMountains(bool print) {
@@ -305,13 +356,8 @@ int main() {
   root = NULL;
   ANTLR(input(&root), stdin);
   ASTPrint(root);
-  try {
-    execute(child(root,0));
-    descMountains(false);
-  } catch (string error) {
-    cout << "Error: " << error << endl;
-    cout << "Error occurred. Finishing execution" << endl;
-  }
+  execute(child(root,0));
+  descMountains(false);
 }
 >>
 
@@ -353,7 +399,7 @@ int main() {
 
 
 atom: NUM | (ALM! | )ID | height | match | wellformed;
-expr: atom ((PLUS^ | CIM^) atom)*; // ((PLUS | MINUS))
+expr: atom (PLUS^  atom)*; // ((PLUS | MINUS))
 
 match: MSIM^ LPAR! mountain COMA! mountain RPAR!;
 wellformed: WSIM^ LPAR! mountain RPAR!;

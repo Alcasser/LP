@@ -1,4 +1,7 @@
-M1 is 1*/
-Complete(M1)
-M2 is M1;1*/;2*-;50*\
-Draw(M2)
+M1 is 7*/;2*-
+k is 4
+if (NOT Wellformed(M1)) Complete(k) endif
+if (Wellformed(M1))
+    Draw(M1)
+endif
+k is Wellformed(M1)

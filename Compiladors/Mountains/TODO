@@ -1,1 +1,5 @@
 - Lanzar errores al poner instrucciones no validas
+- Dudas:
+    -- Permitir errores en el arbol (semanticos) (k is M1 + 1). Pero tirar error de ejecución?
+    -- Consumir toda la entrada? (@) En caso contrario puede finalizar la ejecución cuando {cuando_wat}
+    -- Errores de sintaxis se estan reportando como: "line 1: syntax error at "," missing { AND OR RPAR GTHAN LTHAN EQUAL DIFF }"
