@@ -46,6 +46,7 @@ const int WRONG_COMPARATION = 3;
 const int WRONG_BOOLEAN_EXPRESSION = 4;
 const int WRONG_MOUNTAIN_FUNCTION = 5;
 const int WRONG_ASSIGNMENT = 6;
+const int WRONG_PART_CREATION = 7;
 
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
@@ -181,17 +182,28 @@ string throwError(int error, string extras) {
     case WRONG_ASSIGNMENT:
       emessage = "Variables can only be assigned to positive integer values, mountain definitions or other variables";
       break;
+    case WRONG_PART_CREATION:
+      emessage = "Incorrect mountain part expression. Parts are defined as triples of ( integer , \* , [\\ - /] )";
+      break;
   }
   if (!extras.empty()) emessage += extras + '.';
   if (colors) emessage = "\033[1;31m" + emessage + "\033[0m";
   return emessage;
 }
 
+void saveVariable(string varName, int number, string mountain) {
+  if (number != -1) {
+    if (m.count(varName)) m.erase(varName);
+    v[varName] = number;
+  } else {
+    if (v.count(varName)) v.erase(varName);
+    m[varName] = mountain;
+  }
+}
 
 string evaluate(AST *a, int& num, bool& cond) throw(string) {
   if (a == NULL) {
     num = -1;
-    cond = false;
     return "";
   }
   int tmp1 = -1;
@@ -203,10 +215,12 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     if (part1.empty() or part2.empty()) throw throwError(WRONG_CONCATENATION, "");
     return part1 + part2;
   } else if (a->kind == "*") {
-    int size;
+    int size = -1;
+    string part = "";
     evaluate(child(a,0), size, cond);
-    char part = evaluate(child(a,1), num, cond)[0];
-    return string(size, part);
+    part = evaluate(child(a,1), num, cond);
+    if (part.empty() or size == -1) throw throwError(WRONG_PART_CREATION, "");
+    return string(size, part[0]);
   } else if (a->kind == "identifier") {
     if (m.count(a->text.c_str())) {
       return m[a->text.c_str()];
@@ -221,9 +235,11 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     num = stoi(a->text.c_str()); 
   } else if (a->kind == "Valley" || a->kind == "Peak") {
     int f, s, t;
+    f = s = t = -1;
     evaluate(child(a,0), f, cond);
     evaluate(child(a,1), s, cond);
     evaluate(child(a,2), t, cond);
+    if (f == -1 or s == -1 or t == -1) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
     if (a->kind == "Peak")
       return string(f, '\/') + string(s, '\-') + string(t, '\\');
     else
@@ -254,13 +270,6 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     evaluate(child(a,1), ib, cond);
     if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
     cond = (ia == ib);
-  } else if (a->kind == "!=") {
-    int ia, ib;
-    ia = ib = -1;
-    evaluate(child(a,0), ia, cond);
-    evaluate(child(a,1), ib, cond);
-    if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
-    cond = (ia != ib);
   } else if (a->kind == ">") {
     int ia, ib;
     ia = ib = -1;
@@ -312,8 +321,8 @@ void execute(AST *a) throw(string) {
    } else if (a->kind == "is") {
      mountain = evaluate(child(a,1), num, res);
      if (mountain.empty() and num == -1) throw throwError(WRONG_ASSIGNMENT, "");
-     else if (mountain.empty()) v[child(a,0)->text] = num;
-     else m[child(a,0)->text] = mountain;
+     else if (mountain.empty()) saveVariable(child(a,0)->text, num, "");
+     else saveVariable(child(a,0)->text, -1, mountain);
    } else if (a->kind == "Draw") {
      mountain = evaluate(child(a,0), num, res);
      if (mountain.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
@@ -323,8 +332,7 @@ void execute(AST *a) throw(string) {
      if (mountain.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
      m[child(a,0)->text] = completeMountain(mountain);
    } else if (a->kind == "if") {
-     if (!evaluate(child(a,0), num, res).empty()) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
-     if (num != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
+     if (!evaluate(child(a,0), num, res).empty() or num != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
      if (res) {
        execute(child(a,1)->down);
      }
@@ -393,31 +401,30 @@ int main() {
 #token GTHAN ">"
 #token LTHAN "<"
 #token EQUAL "=="
-#token DIFF "!="
 #token COMA ","
 #token SPACE "[\ \t \n]" << zzskip(); >>
 
 
 atom: NUM | (ALM! | )ID | height | match | wellformed;
-expr: atom (PLUS^  atom)*; // ((PLUS | MINUS))
+expr: atom (PLUS^  atom)*;
 
 match: MSIM^ LPAR! mountain COMA! mountain RPAR!;
 wellformed: WSIM^ LPAR! mountain RPAR!;
 height: HSIM^ LPAR! mountain RPAR!;
 peakvalley: (PSIM^ | VSIM^) LPAR! expr COMA! expr COMA! expr RPAR!;
 
-part: expr (MULT^ (PUJADA | CIM | BAIXADA))*; // |) not working EOF unexpected (?)
+part: expr ((MULT^ (PUJADA | CIM | BAIXADA)) | );
 mountexpr: part | peakvalley;
 mountain: mountexpr (CONCAT^ mountexpr)*;
 assign: ID ASIG^ mountain;
 
-boolexpr3: atom ((GTHAN^ | LTHAN^ | EQUAL^ | DIFF^) atom | );
+boolexpr4: atom ((GTHAN^ | LTHAN^ | EQUAL^) atom | );
+boolexpr3: (NOT^ | ) boolexpr4;
 boolexpr2: boolexpr3 (AND^ boolexpr2 | );
 boolexpr: boolexpr2 (OR^ boolexpr | ) ;
-boolx: (NOT^ | ) boolexpr;
 
-condic: IF^ LPAR! boolx RPAR! mountains ENDIF!;
-iter: WHILE^ LPAR! boolx RPAR! mountains ENDWHILE!;
+condic: IF^ LPAR! boolexpr RPAR! mountains ENDIF!;
+iter: WHILE^ LPAR! boolexpr RPAR! mountains ENDWHILE!;
 draw: DSIM^ LPAR! mountain RPAR!;
 complete: CSIM^ LPAR! ID RPAR!;
 mountains: (assign | condic | draw | iter | complete)* << #0 = createASTlist(_sibling); >>;

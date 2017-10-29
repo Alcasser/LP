@@ -38,9 +38,8 @@
 #define GTHAN 28
 #define LTHAN 29
 #define EQUAL 30
-#define DIFF 31
-#define COMA 32
-#define SPACE 33
+#define COMA 31
+#define SPACE 32
 
 #ifdef __USE_PROTOS
 void atom(AST**_root);
@@ -103,6 +102,12 @@ extern void assign();
 #endif
 
 #ifdef __USE_PROTOS
+void boolexpr4(AST**_root);
+#else
+extern void boolexpr4();
+#endif
+
+#ifdef __USE_PROTOS
 void boolexpr3(AST**_root);
 #else
 extern void boolexpr3();
@@ -118,12 +123,6 @@ extern void boolexpr2();
 void boolexpr(AST**_root);
 #else
 extern void boolexpr();
-#endif
-
-#ifdef __USE_PROTOS
-void boolx(AST**_root);
-#else
-extern void boolx();
 #endif
 
 #ifdef __USE_PROTOS
@@ -167,13 +166,14 @@ extern SetWordType zzerr1[];
 extern SetWordType zzerr2[];
 extern SetWordType zzerr3[];
 extern SetWordType zzerr4[];
-extern SetWordType setwd1[];
 extern SetWordType zzerr5[];
+extern SetWordType setwd1[];
 extern SetWordType zzerr6[];
 extern SetWordType zzerr7[];
-extern SetWordType setwd2[];
 extern SetWordType zzerr8[];
+extern SetWordType setwd2[];
 extern SetWordType zzerr9[];
 extern SetWordType zzerr10[];
+extern SetWordType zzerr11[];
 extern SetWordType setwd3[];
 extern SetWordType setwd4[];

@@ -78,6 +78,7 @@ const int WRONG_COMPARATION = 3;
 const int WRONG_BOOLEAN_EXPRESSION = 4;
 const int WRONG_MOUNTAIN_FUNCTION = 5;
 const int WRONG_ASSIGNMENT = 6;
+const int WRONG_PART_CREATION = 7;
 
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
@@ -213,17 +214,28 @@ string throwError(int error, string extras) {
     case WRONG_ASSIGNMENT:
     emessage = "Variables can only be assigned to positive integer values, mountain definitions or other variables";
     break;
+    case WRONG_PART_CREATION:
+    emessage = "Incorrect mountain part expression. Parts are defined as triples of ( integer , \* , [\\ - /] )";
+    break;
   }
   if (!extras.empty()) emessage += extras + '.';
   if (colors) emessage = "\033[1;31m" + emessage + "\033[0m";
   return emessage;
 }
 
+void saveVariable(string varName, int number, string mountain) {
+  if (number != -1) {
+    if (m.count(varName)) m.erase(varName);
+    v[varName] = number;
+  } else {
+    if (v.count(varName)) v.erase(varName);
+    m[varName] = mountain;
+  }
+}
 
 string evaluate(AST *a, int& num, bool& cond) throw(string) {
   if (a == NULL) {
     num = -1;
-    cond = false;
     return "";
   }
   int tmp1 = -1;
@@ -235,10 +247,12 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     if (part1.empty() or part2.empty()) throw throwError(WRONG_CONCATENATION, "");
     return part1 + part2;
   } else if (a->kind == "*") {
-    int size;
+    int size = -1;
+    string part = "";
     evaluate(child(a,0), size, cond);
-    char part = evaluate(child(a,1), num, cond)[0];
-    return string(size, part);
+    part = evaluate(child(a,1), num, cond);
+    if (part.empty() or size == -1) throw throwError(WRONG_PART_CREATION, "");
+    return string(size, part[0]);
   } else if (a->kind == "identifier") {
     if (m.count(a->text.c_str())) {
       return m[a->text.c_str()];
@@ -253,9 +267,11 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     num = stoi(a->text.c_str()); 
   } else if (a->kind == "Valley" || a->kind == "Peak") {
     int f, s, t;
+    f = s = t = -1;
     evaluate(child(a,0), f, cond);
     evaluate(child(a,1), s, cond);
     evaluate(child(a,2), t, cond);
+    if (f == -1 or s == -1 or t == -1) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
     if (a->kind == "Peak")
     return string(f, '\/') + string(s, '\-') + string(t, '\\');
     else
@@ -286,13 +302,6 @@ string evaluate(AST *a, int& num, bool& cond) throw(string) {
     evaluate(child(a,1), ib, cond);
     if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
     cond = (ia == ib);
-  } else if (a->kind == "!=") {
-    int ia, ib;
-    ia = ib = -1;
-    evaluate(child(a,0), ia, cond);
-    evaluate(child(a,1), ib, cond);
-    if (ia < 0 or ib < 0) throw throwError(WRONG_COMPARATION, a->kind);
-    cond = (ia != ib);
   } else if (a->kind == ">") {
     int ia, ib;
     ia = ib = -1;
@@ -344,8 +353,8 @@ void execute(AST *a) throw(string) {
     } else if (a->kind == "is") {
       mountain = evaluate(child(a,1), num, res);
       if (mountain.empty() and num == -1) throw throwError(WRONG_ASSIGNMENT, "");
-      else if (mountain.empty()) v[child(a,0)->text] = num;
-      else m[child(a,0)->text] = mountain;
+      else if (mountain.empty()) saveVariable(child(a,0)->text, num, "");
+      else saveVariable(child(a,0)->text, -1, mountain);
     } else if (a->kind == "Draw") {
       mountain = evaluate(child(a,0), num, res);
       if (mountain.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
@@ -355,8 +364,7 @@ void execute(AST *a) throw(string) {
       if (mountain.empty()) throw throwError(WRONG_MOUNTAIN_FUNCTION, a->kind);
       m[child(a,0)->text] = completeMountain(mountain);
     } else if (a->kind == "if") {
-      if (!evaluate(child(a,0), num, res).empty()) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
-      if (num != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
+      if (!evaluate(child(a,0), num, res).empty() or num != -1) throw throwError(WRONG_BOOLEAN_EXPRESSION, a->kind);
       if (res) {
         execute(child(a,1)->down);
       }
@@ -624,30 +632,41 @@ AST **_root;
     zzBLOCK(zztasp2);
     zzMake0;
     {
-    while ( (LA(1)==MULT) ) {
-      zzmatch(MULT); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
+    if ( (LA(1)==MULT) ) {
       {
         zzBLOCK(zztasp3);
         zzMake0;
         {
-        if ( (LA(1)==PUJADA) ) {
-          zzmatch(PUJADA); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
-        }
-        else {
-          if ( (LA(1)==CIM) ) {
-            zzmatch(CIM); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
+        zzmatch(MULT); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
+        {
+          zzBLOCK(zztasp4);
+          zzMake0;
+          {
+          if ( (LA(1)==PUJADA) ) {
+            zzmatch(PUJADA); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
           }
           else {
-            if ( (LA(1)==BAIXADA) ) {
-              zzmatch(BAIXADA); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
+            if ( (LA(1)==CIM) ) {
+              zzmatch(CIM); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
             }
-            else {zzFAIL(1,zzerr4,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+            else {
+              if ( (LA(1)==BAIXADA) ) {
+                zzmatch(BAIXADA); zzsubchild(_root, &_sibling, &_tail); zzCONSUME;
+              }
+              else {zzFAIL(1,zzerr4,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+            }
+          }
+          zzEXIT(zztasp4);
           }
         }
         zzEXIT(zztasp3);
         }
       }
-      zzLOOP(zztasp2);
+    }
+    else {
+      if ( (setwd1[LA(1)]&0x80) ) {
+      }
+      else {zzFAIL(1,zzerr5,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
     }
     zzEXIT(zztasp2);
     }
@@ -657,7 +676,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd1, 0x80);
+  zzresynch(setwd2, 0x1);
   }
 }
 
@@ -673,21 +692,21 @@ AST **_root;
   zzBLOCK(zztasp1);
   zzMake0;
   {
-  if ( (setwd2[LA(1)]&0x1) ) {
+  if ( (setwd2[LA(1)]&0x2) ) {
     part(zzSTR); zzlink(_root, &_sibling, &_tail);
   }
   else {
-    if ( (setwd2[LA(1)]&0x2) ) {
+    if ( (setwd2[LA(1)]&0x4) ) {
       peakvalley(zzSTR); zzlink(_root, &_sibling, &_tail);
     }
-    else {zzFAIL(1,zzerr5,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+    else {zzFAIL(1,zzerr6,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
   }
   zzEXIT(zztasp1);
   return;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x4);
+  zzresynch(setwd2, 0x8);
   }
 }
 
@@ -721,7 +740,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x8);
+  zzresynch(setwd2, 0x10);
   }
 }
 
@@ -745,15 +764,15 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x10);
+  zzresynch(setwd2, 0x20);
   }
 }
 
 void
 #ifdef __USE_PROTOS
-boolexpr3(AST**_root)
+boolexpr4(AST**_root)
 #else
-boolexpr3(_root)
+boolexpr4(_root)
 AST **_root;
 #endif
 {
@@ -766,7 +785,7 @@ AST **_root;
     zzBLOCK(zztasp2);
     zzMake0;
     {
-    if ( (setwd2[LA(1)]&0x20) ) {
+    if ( (setwd2[LA(1)]&0x40) ) {
       {
         zzBLOCK(zztasp3);
         zzMake0;
@@ -782,12 +801,7 @@ AST **_root;
             if ( (LA(1)==EQUAL) ) {
               zzmatch(EQUAL); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
             }
-            else {
-              if ( (LA(1)==DIFF) ) {
-                zzmatch(DIFF); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
-              }
-              else {zzFAIL(1,zzerr6,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
-            }
+            else {zzFAIL(1,zzerr7,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
           }
         }
         zzEXIT(zztasp3);
@@ -796,9 +810,9 @@ AST **_root;
       atom(zzSTR); zzlink(_root, &_sibling, &_tail);
     }
     else {
-      if ( (setwd2[LA(1)]&0x40) ) {
+      if ( (setwd2[LA(1)]&0x80) ) {
       }
-      else {zzFAIL(1,zzerr7,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+      else {zzFAIL(1,zzerr8,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
     }
     zzEXIT(zztasp2);
     }
@@ -808,7 +822,44 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd2, 0x80);
+  zzresynch(setwd3, 0x1);
+  }
+}
+
+void
+#ifdef __USE_PROTOS
+boolexpr3(AST**_root)
+#else
+boolexpr3(_root)
+AST **_root;
+#endif
+{
+  zzRULE;
+  zzBLOCK(zztasp1);
+  zzMake0;
+  {
+  {
+    zzBLOCK(zztasp2);
+    zzMake0;
+    {
+    if ( (LA(1)==NOT) ) {
+      zzmatch(NOT); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
+    }
+    else {
+      if ( (setwd3[LA(1)]&0x2) ) {
+      }
+      else {zzFAIL(1,zzerr9,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+    }
+    zzEXIT(zztasp2);
+    }
+  }
+  boolexpr4(zzSTR); zzlink(_root, &_sibling, &_tail);
+  zzEXIT(zztasp1);
+  return;
+fail:
+  zzEXIT(zztasp1);
+  zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
+  zzresynch(setwd3, 0x4);
   }
 }
 
@@ -834,9 +885,9 @@ AST **_root;
       boolexpr2(zzSTR); zzlink(_root, &_sibling, &_tail);
     }
     else {
-      if ( (setwd3[LA(1)]&0x1) ) {
+      if ( (setwd3[LA(1)]&0x8) ) {
       }
-      else {zzFAIL(1,zzerr8,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+      else {zzFAIL(1,zzerr10,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
     }
     zzEXIT(zztasp2);
     }
@@ -846,7 +897,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x2);
+  zzresynch(setwd3, 0x10);
   }
 }
 
@@ -874,7 +925,7 @@ AST **_root;
     else {
       if ( (LA(1)==RPAR) ) {
       }
-      else {zzFAIL(1,zzerr9,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
+      else {zzFAIL(1,zzerr11,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
     }
     zzEXIT(zztasp2);
     }
@@ -884,44 +935,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x4);
-  }
-}
-
-void
-#ifdef __USE_PROTOS
-boolx(AST**_root)
-#else
-boolx(_root)
-AST **_root;
-#endif
-{
-  zzRULE;
-  zzBLOCK(zztasp1);
-  zzMake0;
-  {
-  {
-    zzBLOCK(zztasp2);
-    zzMake0;
-    {
-    if ( (LA(1)==NOT) ) {
-      zzmatch(NOT); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
-    }
-    else {
-      if ( (setwd3[LA(1)]&0x8) ) {
-      }
-      else {zzFAIL(1,zzerr10,&zzMissSet,&zzMissText,&zzBadTok,&zzBadText,&zzErrk); goto fail;}
-    }
-    zzEXIT(zztasp2);
-    }
-  }
-  boolexpr(zzSTR); zzlink(_root, &_sibling, &_tail);
-  zzEXIT(zztasp1);
-  return;
-fail:
-  zzEXIT(zztasp1);
-  zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x10);
+  zzresynch(setwd3, 0x20);
   }
 }
 
@@ -939,7 +953,7 @@ AST **_root;
   {
   zzmatch(IF); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
   zzmatch(LPAR);  zzCONSUME;
-  boolx(zzSTR); zzlink(_root, &_sibling, &_tail);
+  boolexpr(zzSTR); zzlink(_root, &_sibling, &_tail);
   zzmatch(RPAR);  zzCONSUME;
   mountains(zzSTR); zzlink(_root, &_sibling, &_tail);
   zzmatch(ENDIF);  zzCONSUME;
@@ -948,7 +962,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x20);
+  zzresynch(setwd3, 0x40);
   }
 }
 
@@ -966,7 +980,7 @@ AST **_root;
   {
   zzmatch(WHILE); zzsubroot(_root, &_sibling, &_tail); zzCONSUME;
   zzmatch(LPAR);  zzCONSUME;
-  boolx(zzSTR); zzlink(_root, &_sibling, &_tail);
+  boolexpr(zzSTR); zzlink(_root, &_sibling, &_tail);
   zzmatch(RPAR);  zzCONSUME;
   mountains(zzSTR); zzlink(_root, &_sibling, &_tail);
   zzmatch(ENDWHILE);  zzCONSUME;
@@ -975,7 +989,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x40);
+  zzresynch(setwd3, 0x80);
   }
 }
 
@@ -1000,7 +1014,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd3, 0x80);
+  zzresynch(setwd4, 0x1);
   }
 }
 
@@ -1025,7 +1039,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd4, 0x1);
+  zzresynch(setwd4, 0x2);
   }
 }
 
@@ -1046,7 +1060,7 @@ AST **_root;
     zzMake0;
     {
     for (;;) {
-      if ( !((setwd4[LA(1)]&0x2))) break;
+      if ( !((setwd4[LA(1)]&0x4))) break;
       if ( (LA(1)==ID) ) {
         assign(zzSTR); zzlink(_root, &_sibling, &_tail);
       }
@@ -1082,7 +1096,7 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd4, 0x4);
+  zzresynch(setwd4, 0x8);
   }
 }
 
@@ -1105,6 +1119,6 @@ AST **_root;
 fail:
   zzEXIT(zztasp1);
   zzsyn(zzMissText, zzBadTok, (ANTLRChar *)"", zzMissSet, zzMissTok, zzErrk, zzBadText);
-  zzresynch(setwd4, 0x8);
+  zzresynch(setwd4, 0x10);
   }
 }
