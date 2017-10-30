@@ -168,7 +168,7 @@ int mountainHeight(string mountain) {
   int max, min, level;
   max = min = level = 0;
   for (int i = 0; i < mountain.length(); i++) {
-    if (mountain[i] == '\/') ++level;
+    if (mountain[i] == '/') ++level;
     else if (mountain[i] == '\\') --level;
     if (level > max) max = level;
     if (level < min) min = level;
@@ -180,12 +180,12 @@ string completeMountain(string mountain) {
   if (mountainWellformed(mountain)) return mountain;
   else {
     char last = mountain.back();
-    if (last == '\/' and mountainWellformed(mountain + "-\\")) return mountain + "-\\";
+    if (last == '/' and mountainWellformed(mountain + "-\\")) return mountain + "-\\";
     else if (last == '-') {
       if (mountainWellformed(mountain + "\\")) return mountain + "\\";
-      if (mountainWellformed(mountain + "\/")) return mountain + "\/";
+      if (mountainWellformed(mountain + "/")) return mountain + "\/";
     }
-    else if (mountainWellformed(mountain + "-\/")) return mountain + "-\/";
+    else if (mountainWellformed(mountain + "-/")) return mountain + "-/";
   }
   return "";
 }
@@ -387,7 +387,7 @@ void descMountains(bool print) {
   for (it = m.begin(); it != m.end(); it++) {
     string mountain = m[it->first];
     if (mountainWellformed(mountain)) {
-      cout << "L'altitud final de " << it->first << " es: " << mountainHeight(mountain) << endl;
+      cout << "L'altitud final de " << it->first << " és: " << mountainHeight(mountain) << endl;
     }
   }
 }

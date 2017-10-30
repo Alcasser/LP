@@ -159,18 +159,18 @@ int main() {
 #token LTHAN "<"
 #token SPACE "[\ \n]" << zzskip();>>
 
-//expr: NUM (PLUS^ NUM)* ;
-//expr: NUM ((PLUS^ | MINUS^) expr | );
-//parexpr: LPAR! expr RPAR! ;
-//atom: NUM | parexpr ;
-//term: atom ((TIMES^ | DIVIDED^) term | );
-//expr: term ((PLUS^ | MINUS^) expr | );
-//input: expr "@";
-//------------------------
+expr: NUM (PLUS^ NUM)* ;
+expr: NUM ((PLUS^ | MINUS^) expr | );
 parexpr: LPAR! expr RPAR! ;
-atom: NUM | ID | parexpr ;
-term: atom ((TIMES^ | DIVIDED^) atom)*;
-expr: term ((PLUS^ | MINUS^) term)*;
-cond: expr ((GTHAN^ | LTHAN^) expr | );
-instruction: (ID ASIG^ expr | WRITE^ expr | WHILE^ cond DO! (instruction)* EWHILE!);
-program: (instruction)* ;
+atom: NUM | parexpr ;
+term: atom ((TIMES^ | DIVIDED^) term | );
+expr: term ((PLUS^ | MINUS^) expr | );
+program: expr "@";
+//------------------------
+//parexpr: LPAR! expr RPAR! ;
+//atom: NUM | ID | parexpr ;
+//term: atom ((TIMES^ | DIVIDED^) atom)*;
+//expr: term ((PLUS^ | MINUS^) term)*;
+//cond: expr ((GTHAN^ | LTHAN^) expr | );
+//instruction: (ID ASIG^ expr | WRITE^ expr | WHILE^ cond DO! (instruction)* EWHILE!);
+//program: (instruction)* "@";

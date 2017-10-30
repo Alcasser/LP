@@ -47,6 +47,7 @@ const int WRONG_BOOLEAN_EXPRESSION = 4;
 const int WRONG_MOUNTAIN_FUNCTION = 5;
 const int WRONG_ASSIGNMENT = 6;
 const int WRONG_PART_CREATION = 7;
+const int CANT_COMPLETE_MOUNTAIN = 8;
 
 // function to fill token information
 void zzcr_attr(Attrib *attr, int type, char *text) {
@@ -127,37 +128,6 @@ void ASTPrint(AST *a) {
   }
 }
 
-bool mountainWellformed(string mountain) {
-  regex mountainRegex ("^((\\/+-+\\\\+)|(\\\\+-+\\/+))+$");
-  return regex_match(mountain, mountainRegex);
-}
-
-int mountainHeight(string mountain) {
-  int max, min, level;
-  max = min = level = 0;
-  for (int i = 0; i < mountain.length(); i++) {
-    if (mountain[i] == '\/') ++level;
-    else if (mountain[i] == '\\') --level;
-    if (level > max) max = level;
-    if (level < min) min = level;
-  }
-  return (max - min);
-}
-
-string completeMountain(string mountain) {
-  if (mountainWellformed(mountain)) return mountain;
-  else {
-    char last = mountain.back();
-    if (last == '\/' and mountainWellformed(mountain + "-\\")) return mountain + "-\\";
-    else if (last == '-') {
-      if (mountainWellformed(mountain + "\\")) return mountain + "\\";
-      if (mountainWellformed(mountain + "\/")) return mountain + "\/";
-    }
-    else if (mountainWellformed(mountain + "-\/")) return mountain + "-\/";
-  }
-  return "";
-}
-
 string throwError(int error, string extras) {
   string emessage = "";
   switch(error) {
@@ -185,11 +155,47 @@ string throwError(int error, string extras) {
     case WRONG_PART_CREATION:
       emessage = "Incorrect mountain part expression. Parts are defined as triples of ( integer , \* , [\\ - /] )";
       break;
+    case CANT_COMPLETE_MOUNTAIN:
+      emessage = "Can not complete mountain: ";
+      break;
   }
   if (!extras.empty()) emessage += extras + '.';
   if (colors) emessage = "\033[1;31m" + emessage + "\033[0m";
   return emessage;
 }
+
+bool mountainWellformed(string mountain) {
+  regex mountainRegex("^((/+-+\\\\+)|(\\\\+-+/+))+$");
+  return regex_match(mountain, mountainRegex);
+}
+
+int mountainHeight(string mountain) {
+  int max, min, level;
+  max = min = level = 0;
+  for (int i = 0; i < mountain.length(); i++) {
+    if (mountain[i] == '/') ++level;
+    else if (mountain[i] == '\\') --level;
+    if (level > max) max = level;
+    if (level < min) min = level;
+  }
+  return (max - min);
+}
+
+string completeMountain(string mountain) {
+  if (mountainWellformed(mountain)) return mountain;
+  else {
+    char last = mountain.back();
+    if (last == '/' and mountainWellformed(mountain + "-\\")) return mountain + "-\\";
+    else if (last == '-') {
+      if (mountainWellformed(mountain + "\\")) return mountain + "\\";
+      if (mountainWellformed(mountain + "/")) return mountain + "\/";
+    }
+    else if (mountainWellformed(mountain + "-/")) return mountain + "-/";
+  }
+  throw throwError(CANT_COMPLETE_MOUNTAIN, mountain);
+}
+
+
 
 void saveVariable(string varName, int number, string mountain) {
   if (number != -1) {
@@ -355,7 +361,7 @@ void descMountains(bool print) {
   for (it = m.begin(); it != m.end(); it++) {
     string mountain = m[it->first];
     if (mountainWellformed(mountain)) {
-      cout << "L'altitud final de " << it->first << " es: " << mountainHeight(mountain) << endl;
+      cout << "L'altitud final de " << it->first << " és: " << mountainHeight(mountain) << endl;
     }
   }
 }
@@ -428,5 +434,4 @@ iter: WHILE^ LPAR! boolexpr RPAR! mountains ENDWHILE!;
 draw: DSIM^ LPAR! mountain RPAR!;
 complete: CSIM^ LPAR! ID RPAR!;
 mountains: (assign | condic | draw | iter | complete)* << #0 = createASTlist(_sibling); >>;
-input: mountains "@";
-//mountains: (assign | condic | draw | iter | complete)* << #0 = createASTlist(_sibling); >>;
+input: mountains "@"; 

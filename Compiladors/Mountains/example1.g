@@ -162,15 +162,15 @@ int main() {
 //expr: NUM (PLUS^ NUM)* ;
 //expr: NUM ((PLUS^ | MINUS^) expr | );
 //parexpr: LPAR! expr RPAR! ;
-//atom: NUM | parexpr ;
-//term: atom ((TIMES^ | DIVIDED^) term | );
-//expr: term ((PLUS^ | MINUS^) expr | );
+atom: NUM | ID | parexpr ;
+term: atom ((TIMES^ | DIVIDED^) term | );
+expr: term ((PLUS^ | MINUS^) expr | );
 //input: expr "@";
 //------------------------
 parexpr: LPAR! expr RPAR! ;
-atom: NUM | ID | parexpr ;
-term: atom ((TIMES^ | DIVIDED^) atom)*;
-expr: term ((PLUS^ | MINUS^) term)*;
+//atom: NUM | ID | parexpr ;
+//term: atom ((TIMES^ | DIVIDED^) atom)*;
+//expr: term ((PLUS^ | MINUS^) term)*;
 cond: expr ((GTHAN^ | LTHAN^) expr | );
 instruction: (ID ASIG^ expr | WRITE^ expr | WHILE^ cond DO! (instruction)* EWHILE!);
 program: (instruction)* ;
