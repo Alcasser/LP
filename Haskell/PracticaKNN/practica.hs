@@ -16,10 +16,10 @@ getLabelD (Dist l _) = l
 
 
 {--
-Helper functions to work with labels and distances
+Helper functions to sort and find maximum values
 --}
 
---Quicksort algorithm with values instance of the class Ord
+--Quicksort algorithm
 qsort :: Ord a => [a] -> [a]
 qsort [] = []
 qsort [x] = [x]
@@ -43,21 +43,9 @@ group xs = foldr f [] xs
                 | y == x = (x : y : ys) : xs
                 | otherwise = [x] : (y : ys) : xs
 
-{--
-Helper functions to parse data.
-Using System.IO to read training and testing CSV files.
---}
-
---Function to create a flower given a string line containing this flower data
-parseFlower :: String -> Flower Double
-parseFlower flower = Flower (last finfo) (map read $ init finfo)
-        where
-            finfo = splitOn "," flower
-
---Function to create a data structure of Flowers
-parseI :: String -> [Flower Double]
-parseI strOfFlowers = map parseFlower (lines strOfFlowers)
-
+--Function to calculate the maximum of an array
+maxa :: [Int] -> Int
+maxa xs = foldl (\b a -> if b >= a then b else a) 0 xs
 
 {--
 Helper functions to calculate distance between observations,
@@ -84,18 +72,40 @@ calcDists df flowers newFlower = map calcDistf flowers
     where
         calcDistf = \flower -> Dist (getLabelF flower) (df newFlower flower)
 
---Function to calculate perform a basic vote
---a variable type has to be member of the class Ord in order to use quicksort
-basicVote :: Ord a => [Dist a] -> Label
-basicVote ds = qsort (map getLabelD ds)
---basicVote xs = group $ qsort xs
+--Function to perform a basic vote
+basicVote :: [Dist a] -> Label
+basicVote ds = head $ head $ filter ((freq ==) . length) groups
+        where
+            groups = group $ qsort (map getLabelD ds)
+            freq = maxa $ map length groups 
 
 --Function kNN to classify a new flower
 kNN :: (Ord a, Floating a) => [Flower a] -> (Flower a -> Flower a -> a) -> ([Dist a] -> Label) -> Int -> (Flower a -> Label)
 kNN flowers df vf k = vf . (take k) . qsort . (calcDists df flowers)
 
+{--
+Helper functions to parse data.
+Using System.IO to read training and testing CSV files.
+--}
+
+--Function to create a flower given a string line containing this flower data
+parseFlower :: String -> Flower Double
+parseFlower flower = Flower (last finfo) (map read $ init finfo)
+        where
+            finfo = splitOn "," flower
+
+--Function to create a data structure of Flowers
+parseI :: String -> [Flower Double]
+parseI strOfFlowers = map parseFlower (lines strOfFlowers)
+
+performKnn :: [Flower Double] -> [Flower Double] -> [Label]
+performKnn fsTrain fsTest = map (kNN fsTrain euclideanDist basicVote 5) fsTest
+
 --Main program execution
 main :: IO()
 main = do
     handleLearning <- openFile "./iris.train.csv" ReadMode
-    hGetContents handleLearning >>= \str -> putStrLn $ show $ last $ parseI str
+    handleTesting <- openFile "./iris.test.csv" ReadMode
+    learningFlowers <- hGetContents handleLearning
+    testingFlowers <- hGetContents handleTesting
+    putStrLn $ show $ performKnn (parseI learningFlowers) (parseI testingFlowers)
