@@ -101,6 +101,9 @@ parseI strOfFlowers = map parseFlower (lines strOfFlowers)
 performKnn :: [Flower Double] -> [Flower Double] -> [Label]
 performKnn fsTrain fsTest = map (kNN fsTrain euclideanDist basicVote 5) fsTest
 
+getLabels :: [Flower Double] -> [Label]
+getLabels fs = map getLabelF fs
+
 --Main program execution
 main :: IO()
 main = do
@@ -108,4 +111,7 @@ main = do
     handleTesting <- openFile "./iris.test.csv" ReadMode
     learningFlowers <- hGetContents handleLearning
     testingFlowers <- hGetContents handleTesting
+    putStrLn "Classified as: "
     putStrLn $ show $ performKnn (parseI learningFlowers) (parseI testingFlowers)
+    putStrLn "Real labels: "
+    putStrLn $ show $ getLabels (parseI testingFlowers)
