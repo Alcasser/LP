@@ -1,5 +1,0 @@
-antlr example0.g -> example0.c: it's the parser itself.
-parser.dlg -> scanner definition.
-dlg parser.dlg scan.c -> scan.c -> scanner itself: reads the input
-                                    and generates a list of tokens that
-                                    will be passed to the parser (example0.c).
