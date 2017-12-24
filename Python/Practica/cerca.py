@@ -7,9 +7,11 @@ Created on Thu Dec 21 16:03:14 2017
 """
 from esdeveniment import Esdeveniment
 from fetch_adapter import FetchAdapter
+import search_evaluation_helpers as SE
 import argparse
 import ast
 import xml.etree.ElementTree as ET
+import operator, functools
 from datetime import datetime
 
 
@@ -17,12 +19,14 @@ url = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
 
 def parseArgs():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-k", "--key", help = "consulta d'esdeveniments amb" +
-                        " paraules claus", type = str)
+    parser.add_argument('-k', '--key', help = "consulta d'esdeveniments amb" +
+                        ' paraules claus', type = str)
+    parser.add_argument('-d', '--date', help = "consulta d'esdeveniments " +
+                        'dins de dates concretes')
     return parser.parse_args()
 
-def evaluateKey(key):
-    return ast.literal_eval(key)
+def evaluateLiteral(lit):
+    return ast.literal_eval(lit)
 
 def showAll(root,blanks):
     print(blanks, root.tag, root.attrib, root.text)
@@ -69,12 +73,28 @@ def parseEsdeveniments(xmlSource):
     actes = root.find('*//actes')
     return map(lambda a: buildEvent(a), actes)
 
-def main():
+def search_criteria():
     args = parseArgs()
-    key = evaluateKey(args.key)
-    esd_a = FetchAdapter(url, 'esdeveniments.data', parseEsdeveniments)
+    evalFunctions = []
+    if args.key:
+        key_search = evaluateLiteral(args.key)
+        evalFunctions.append(lambda e: SE.evaluate_info(key_search, e.info))
+    if args.date:
+        search_dates = evaluateLiteral(args.date)
+        evalFunctions.append(lambda e: SE.evaluate_dates(search_dates,
+                                                         e.dates))
+    return evalFunctions
+
+def matches_search(event, evalFunctions):
+    results = map(lambda ev_f: ev_f(event), evalFunctions)
+    return functools.reduce(operator.and_, results, True)
+
+def main():
+    esd_a = FetchAdapter(url, parseEsdeveniments)
     esdeveniments = esd_a.get_objects()
-    key_esds = filter(lambda e: e.matches_search(key), esdeveniments)
+    evaluation_functions = search_criteria()
+    key_esds = filter(lambda e: matches_search(e, evaluation_functions),
+                      esdeveniments)
     srch_esd = list(map(lambda e: e.nom, list(key_esds)))
     print(srch_esd)
     print(len(srch_esd))

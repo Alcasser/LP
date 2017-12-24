@@ -16,7 +16,7 @@ class FetchAdapter:
     using the parseObjectFunction
     '''
         
-    def __init__(self, url, data_file_name, parseObjectFunction):
+    def __init__(self, url, parseObjectFunction, data_file_name = ''):
         self.url = url
         self.parseObjectFunction = parseObjectFunction
         self.data_file_name = data_file_name
@@ -30,7 +30,10 @@ class FetchAdapter:
         return source
     
     def __enc_file_name(self):
-        file_name = self.data_file_name + self.url
+        if not self.data_file_name:
+            file_name = self.url
+        else:
+            file_name = self.data_file_name
         return hashlib.sha256(file_name.encode()).hexdigest() + '.cache'
         
     def __write_file(self, source):
