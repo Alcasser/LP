@@ -1,3 +1,5 @@
 /LP-Compiladors
 /fork
 *.vscode
+*.cache
+__pycache__/
