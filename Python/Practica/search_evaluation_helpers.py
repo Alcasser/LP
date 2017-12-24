@@ -5,7 +5,14 @@ Created on Thu Dec 21 16:03:14 2017
 
 @author: alcasser
 """
+import unicodedata
+
+def normalize(s):
+    return ''.join((c for c in unicodedata.normalize('NFD', s) \
+                    if unicodedata.category(c) != 'Mn')).lower()
+        
 def evaluate(lt, text):
+    text = normalize(text)
     if isinstance(lt, list):
         return evaluate_list(lt, text)
     elif isinstance(lt, tuple):
@@ -16,6 +23,7 @@ def evaluate(lt, text):
 def evaluate_list(l, text):
     for elem in l:
         if isinstance(elem, str):
+            elem = normalize(elem)
             if elem not in text:
                 return False
         if isinstance(elem, list):
@@ -29,6 +37,7 @@ def evaluate_list(l, text):
 def evaluate_tuple(t, text):
     for elem in t:
         if isinstance(elem, str):
+            elem = normalize(elem)
             if elem in text:
                 return True
         if isinstance(elem, list):

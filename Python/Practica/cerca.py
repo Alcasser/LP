@@ -6,14 +6,14 @@ Created on Thu Dec 21 16:03:14 2017
 @author: alcasser
 """
 from esdeveniment import Esdeveniment
-import search_evaluation_helpers as SE
 from fetch_adapter import FetchAdapter
 import argparse
 import ast
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-url = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=203"
+
+url = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
 
 def parseArgs():
     parser = argparse.ArgumentParser()
@@ -57,30 +57,27 @@ def parseEsdeveniments(xmlSource):
             data_f = data_i
         else:
             hora_f = datetime.strptime(hora_f_str, '%H.%M')
-            data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)
-            
+            data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)  
         classificacions = acte.find('classificacions')
         cl_str = ''
         for c in classificacions.iter('nivell'):
             cl_str += c.text
-            
         return Esdeveniment(nom, nom_lloc, carrer, barri, districte, \
                             cl_str, data_i, data_f)   
+        
     root = ET.fromstring(xmlSource)
     actes = root.find('*//actes')
     return map(lambda a: buildEvent(a), actes)
-
-def evalEsdeveniment(esd, key):
-    info_esd = esd.get_info_str()
-    return SE.evaluate(key, info_esd)
 
 def main():
     args = parseArgs()
     key = evaluateKey(args.key)
     esd_a = FetchAdapter(url, 'esdeveniments.data', parseEsdeveniments)
     esdeveniments = esd_a.get_objects()
-    key_esds = filter(lambda e: evalEsdeveniment(e, key), esdeveniments)
-    print(len(list(map(lambda e: e.nom, list(key_esds)))))
+    key_esds = filter(lambda e: e.matches_search(key), esdeveniments)
+    srch_esd = list(map(lambda e: e.nom, list(key_esds)))
+    print(srch_esd)
+    print(len(srch_esd))
     
     
     

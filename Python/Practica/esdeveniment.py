@@ -5,6 +5,7 @@ Created on Thu Dec 21 16:03:14 2017
 
 @author: alcasser
 """
+import search_evaluation_helpers as SE
 
 class Esdeveniment:
     'classe per a tractar esdeveniments'
@@ -26,9 +27,6 @@ class Esdeveniment:
     def __build_info(self):
         self.info = self.nom + self.nom_lloc + self.carrer + self.barri + \
                     self.classificacions + self.districte
-        self.info = self.info.lower()
-    
-    def get_info_str(self):
-        return self.info
-               
-    
+        
+    def matches_search(self, search):
+        return SE.evaluate(search, self.info)
