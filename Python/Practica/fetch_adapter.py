@@ -12,7 +12,7 @@ class FetchAdapter:
     '''
     The intention of this class is to make the http requests, store the
     results of the response and obtain a list of objects when
-    getObjects() is called. The objects are obtained reading the data and
+    get_objects() is called. The objects are obtained reading the data and
     using the parseObjectFunction
     '''
         

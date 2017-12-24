@@ -7,15 +7,20 @@ Created on Thu Dec 21 16:03:14 2017
 """
 from esdeveniment import Esdeveniment
 from fetch_adapter import FetchAdapter
+from estacio import Estacio
 import search_evaluation_helpers as SE
+import xml_utils as xmlu
 import argparse
 import ast
+import re
 import xml.etree.ElementTree as ET
 import operator, functools
 from datetime import datetime
 
 
-url = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
+url_esd = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
+url_metro = "http://opendata-ajuntament.barcelona.cat/resources/bcn/" + \
+            "TRANSPORTS%20GEOXML.xml"
 
 def parseArgs():
     parser = argparse.ArgumentParser()
@@ -23,39 +28,26 @@ def parseArgs():
                         ' paraules claus', type = str)
     parser.add_argument('-d', '--date', help = "consulta d'esdeveniments " +
                         'dins de dates concretes')
+    parser.add_argument('-m', '--metro', help = "consulta d'esdeveniments " +
+                        'que disposin de parades de metro de les linies' +
+                        ' especificades en un rang de maxim 500 m')
     return parser.parse_args()
 
 def evaluateLiteral(lit):
     return ast.literal_eval(lit)
 
-def showAll(root,blanks):
-    print(blanks, root.tag, root.attrib, root.text)
-    for child in root:
-        showAll (child, blanks + "  ")
-
 # Funció que inclou la lógica relacionada amb les característiques de les dades
-def parseEsdeveniments(xmlSource):
-    def safe_find(node, names):
-        i = 0
-        while node and i < len(names):
-            node = node.find(names[i])
-            i += 1
-        if node is None:
-            return ''
-        elif node.text is None:
-            return ''
-        else:
-            return node.text
-    
-    def buildEvent(acte):
-        nom = safe_find(acte, ['nom'])
-        nom_lloc = safe_find(acte, ['lloc_simple', 'nom'])
-        carrer = safe_find(acte, ['lloc_simple', 'adreca_simple', 'carrer'])
-        barri = safe_find(acte, ['lloc_simple', 'adreca_simple', 'barri'])
-        districte = safe_find(acte, ['lloc_simple', 'adreca_simple', \
+def parse_esdeveniments(xmlSource):
+    def build_event(acte):
+        nom = xmlu.safe_find(acte, ['nom'])
+        nom_lloc = xmlu.safe_find(acte, ['lloc_simple', 'nom'])
+        carrer = xmlu.safe_find(acte,
+                                ['lloc_simple', 'adreca_simple', 'carrer'])
+        barri = xmlu.safe_find(acte, ['lloc_simple', 'adreca_simple', 'barri'])
+        districte = xmlu.safe_find(acte, ['lloc_simple', 'adreca_simple', \
                                      'districte'])
-        date_i_str = safe_find(acte, ['data', 'data_proper_acte'])
-        hora_f_str = safe_find(acte, ['data', 'hora_fi'])
+        date_i_str = xmlu.safe_find(acte, ['data', 'data_proper_acte'])
+        hora_f_str = xmlu.safe_find(acte, ['data', 'hora_fi'])
         data_i = datetime.strptime(date_i_str, '%d/%m/%Y %H.%M')
         if not hora_f_str:
             data_f = data_i
@@ -71,7 +63,22 @@ def parseEsdeveniments(xmlSource):
         
     root = ET.fromstring(xmlSource)
     actes = root.find('*//actes')
-    return map(lambda a: buildEvent(a), actes)
+    return map(lambda a: build_event(a), actes)
+
+def parse_estacions(xmlSource):
+    def build_estacio(e):
+        nom = xmlu.safe_find(e, ['Tooltip'])
+        try:
+            num = re.search('[0-9.]', nom).group(0)
+        except AttributeError as ae:
+            num = -1
+        lat = xmlu.safe_find(e, ['Coord', 'Latitud'])
+        lng = xmlu.safe_find(e, ['Coord', 'Longitud'])
+        return Estacio(nom, num, lat, lng)
+        
+    root = ET.fromstring(xmlSource)
+    estacions = root.iter('Punt')
+    return map(lambda e: build_estacio(e), estacions)
 
 def search_criteria():
     args = parseArgs()
@@ -83,6 +90,9 @@ def search_criteria():
         search_dates = evaluateLiteral(args.date)
         evalFunctions.append(lambda e: SE.evaluate_dates(search_dates,
                                                          e.dates))
+    if args.metro:
+        lmetro = evaluateLiteral(args.metro)
+        #evalFunctions.append(lambda e: SE.evaluate_metro())
     return evalFunctions
 
 def matches_search(event, evalFunctions):
@@ -90,16 +100,17 @@ def matches_search(event, evalFunctions):
     return functools.reduce(operator.and_, results, True)
 
 def main():
-    esd_a = FetchAdapter(url, parseEsdeveniments)
-    esdeveniments = esd_a.get_objects()
+    ad = FetchAdapter(url_esd, parse_esdeveniments)
+    esdeveniments = ad.get_objects()
+    ad = FetchAdapter(url_metro, parse_estacions)
+    estacions = ad.get_objects()
+    
     evaluation_functions = search_criteria()
-    key_esds = filter(lambda e: matches_search(e, evaluation_functions),
+    srch_esds = filter(lambda e: matches_search(e, evaluation_functions),
                       esdeveniments)
-    srch_esd = list(map(lambda e: e.nom, list(key_esds)))
-    print(srch_esd)
-    print(len(srch_esd))
-    
-    
+    srch_esds_names = list(map(lambda e: e.nom, list(srch_esds)))
+    print(srch_esds_names)
+    print(len(srch_esds_names))
     
     
 if __name__ == "__main__":
