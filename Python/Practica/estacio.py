@@ -11,9 +11,11 @@ class Estacio:
     
     totalEstacions = 0
     
-    def __init__(self, nom, num, lat, lng):
+    def __init__(self, nom, num, geo_pos):
         self.nom = nom
         self.num = num
-        self.lat = lat
-        self.lng = lng
+        self.geo_pos = geo_pos
         self.totalEstacions += 1
+        
+    def get_pos(self):
+        return self.geo_pos

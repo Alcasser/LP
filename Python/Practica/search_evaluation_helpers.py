@@ -11,7 +11,7 @@ def normalize(s):
     return ''.join((c for c in unicodedata.normalize('NFD', s) \
                     if unicodedata.category(c) != 'Mn')).lower()
         
-def evaluate_info(lt, text):
+def evaluate(lt, text):
     text = normalize(text)
     if isinstance(lt, list):
         return evaluate_list(lt, text)
@@ -21,7 +21,10 @@ def evaluate_info(lt, text):
         return lt in text
 
 def evaluate_dates(search_dates, ev_dates):
-    return True
+    pass
+
+        
+        
 
 def evaluate_list(l, text):
     for elem in l:

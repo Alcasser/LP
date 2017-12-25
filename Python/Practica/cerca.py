@@ -5,9 +5,11 @@ Created on Thu Dec 21 16:03:14 2017
 
 @author: alcasser
 """
+
 from esdeveniment import Esdeveniment
 from fetch_adapter import FetchAdapter
 from estacio import Estacio
+from geopos import GeoPos
 import search_evaluation_helpers as SE
 import xml_utils as xmlu
 import argparse
@@ -49,17 +51,26 @@ def parse_esdeveniments(xmlSource):
         date_i_str = xmlu.safe_find(acte, ['data', 'data_proper_acte'])
         hora_f_str = xmlu.safe_find(acte, ['data', 'hora_fi'])
         data_i = datetime.strptime(date_i_str, '%d/%m/%Y %H.%M')
+            
         if not hora_f_str:
             data_f = data_i
         else:
             hora_f = datetime.strptime(hora_f_str, '%H.%M')
-            data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)  
-        classificacions = acte.find('classificacions')
+            data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)
+        
+        classificacions = xmlu.safe_find(acte, ['classificacions'], 'node')
         cl_str = ''
         for c in classificacions.iter('nivell'):
             cl_str += c.text
+        
+        gmaps = xmlu.safe_find(acte, ['lloc_simple', 'adreca_simple',
+                                    'coordenades', 'googleMaps'], 'node')
+        if not isinstance(gmaps, str):
+            posicio = GeoPos(gmaps.attrib['lat'], gmaps.attrib['lon'])
+        else:
+            posicio = GeoPos(0,0)
         return Esdeveniment(nom, nom_lloc, carrer, barri, districte, \
-                            cl_str, data_i, data_f)   
+                            cl_str, data_i, data_f, posicio)   
         
     root = ET.fromstring(xmlSource)
     actes = root.find('*//actes')
@@ -74,24 +85,36 @@ def parse_estacions(xmlSource):
             num = -1
         lat = xmlu.safe_find(e, ['Coord', 'Latitud'])
         lng = xmlu.safe_find(e, ['Coord', 'Longitud'])
-        return Estacio(nom, num, lat, lng)
+        pos = GeoPos(lat, lng)
+        return Estacio(nom, num, pos)
         
     root = ET.fromstring(xmlSource)
     estacions = root.iter('Punt')
     return map(lambda e: build_estacio(e), estacions)
 
+def search_metro(esd):
+    pos_esd = esd.get_pos
+    ad = FetchAdapter(url_metro, parse_estacions)
+    estacions = ad.get_objects()
+    estacions = filter(lambda e: e.get_pos().distancia(pos_esd) <= 500,
+                       estacions)
+    return estacions
+
+def match_dates(esd):
+    pass
+    
 def search_criteria():
     args = parseArgs()
     evalFunctions = []
     if args.key:
         key_search = evaluateLiteral(args.key)
-        evalFunctions.append(lambda e: SE.evaluate_info(key_search, e.info))
+        evalFunctions.append(lambda e: SE.evaluate(key_search, e.info))
     if args.date:
         search_dates = evaluateLiteral(args.date)
         evalFunctions.append(lambda e: SE.evaluate_dates(search_dates,
                                                          e.dates))
     if args.metro:
-        lmetro = evaluateLiteral(args.metro)
+        lmetro = evaluateLiteral(args.metro)            
         #evalFunctions.append(lambda e: SE.evaluate_metro())
     return evalFunctions
 
@@ -102,13 +125,11 @@ def matches_search(event, evalFunctions):
 def main():
     ad = FetchAdapter(url_esd, parse_esdeveniments)
     esdeveniments = ad.get_objects()
-    ad = FetchAdapter(url_metro, parse_estacions)
-    estacions = ad.get_objects()
     
     evaluation_functions = search_criteria()
     srch_esds = filter(lambda e: matches_search(e, evaluation_functions),
                       esdeveniments)
-    srch_esds_names = list(map(lambda e: e.nom, list(srch_esds)))
+    srch_esds_names = list(map(lambda e: e.classificacions, list(srch_esds)))
     print(srch_esds_names)
     print(len(srch_esds_names))
     

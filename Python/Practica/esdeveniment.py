@@ -11,7 +11,7 @@ class Esdeveniment:
     totalEdmts = 0
     
     def __init__(self, nom, nom_lloc, carrer, \
-                 barri, districte, classificacions, data_i, data_f):
+                 barri, districte, classificacions, data_i, data_f, geo_pos):
         self.nom = nom
         self.nom_lloc = nom_lloc
         self.carrer = carrer
@@ -20,6 +20,7 @@ class Esdeveniment:
         self.data_i = data_i
         self.data_f = data_f
         self.classificacions = classificacions
+        self.geo_pos = geo_pos
         self.__build_info()
         Esdeveniment.totalEdmts += 1
     
@@ -31,3 +32,6 @@ class Esdeveniment:
     
     def get_dates(self):
         return (self.data_i, self.data_f)
+    
+    def get_pos(self):
+        return self.geo_pos
