@@ -21,7 +21,12 @@ def evaluate(lt, text):
         return lt in text
 
 def evaluate_dates(search_dates, ev_dates):
-    pass
+    print(ev_dates)
+    for date in search_dates:
+        if isinstance(date, tuple):
+            pass
+        else:
+            date = datetime.strptime(date, '%d/%m/%Y')
 
 def evaluate_list(l, text):
     for elem in l:

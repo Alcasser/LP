@@ -69,7 +69,7 @@ def parse_esdeveniments(xmlSource):
         else:
             posicio = GeoPos(0,0)
         return Esdeveniment(nom, nom_lloc, carrer, barri, districte, \
-                            cl_str, data_i, data_f, posicio)   
+                            cl_str, data_i, data_f, posicio)
         
     root = ET.fromstring(xmlSource)
     actes = root.find('*//actes')
@@ -112,9 +112,8 @@ def search_criteria():
                                                          e.dates))
     if args.metro:                        
         def tostr(transports):
-            trs = '';
-            for t in transports:
-                trs += str(t.num)
+            t_nums = map(lambda t: str(t.num), transports)
+            trs = functools.reduce(operator.add, t_nums, '')
             return trs
         lmetro = evaluateLiteral(args.metro)
         evalFunctions.append(lambda e: SE.evaluate(lmetro,
@@ -135,7 +134,8 @@ def main():
     evaluation_functions = search_criteria()
     srch_esds = filter(lambda e: matches_search(e, evaluation_functions),
                       esdeveniments)
-    srch_esds_names = list(map(lambda e: list(map(lambda e: e.num, list(e.get_transport()))),
+    srch_esds_names = list(map(lambda e: list(map(lambda e: e.num,
+                                                  list(e.get_transport()))),
                                list(srch_esds)))
     print(srch_esds_names)
     print(len(srch_esds_names))
