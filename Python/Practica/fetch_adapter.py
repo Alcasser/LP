@@ -56,7 +56,7 @@ class FetchAdapter:
         
     def get_objects(self):
         self.__check_data()
-        return self.objects
+        return list(self.objects)
         
     
     

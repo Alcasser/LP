@@ -19,7 +19,6 @@ import xml.etree.ElementTree as ET
 import operator, functools
 from datetime import datetime
 
-
 url_esd = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
 url_metro = "http://opendata-ajuntament.barcelona.cat/resources/bcn/" + \
             "TRANSPORTS%20GEOXML.xml"
@@ -80,7 +79,7 @@ def parse_estacions(xmlSource):
     def build_estacio(e):
         nom = xmlu.safe_find(e, ['Tooltip'])
         try:
-            num = re.search('[0-9.]', nom).group(0)
+            num = re.search('L[0-9.]', nom).group(0)
         except AttributeError as ae:
             num = -1
         lat = xmlu.safe_find(e, ['Coord', 'Latitud'])
@@ -92,17 +91,15 @@ def parse_estacions(xmlSource):
     estacions = root.iter('Punt')
     return map(lambda e: build_estacio(e), estacions)
 
-def search_metro(esd):
-    pos_esd = esd.get_pos
-    ad = FetchAdapter(url_metro, parse_estacions)
-    estacions = ad.get_objects()
-    estacions = filter(lambda e: e.get_pos().distancia(pos_esd) <= 500,
-                       estacions)
-    return estacions
+def search_metro(esd, estacions):
+    estacions = filter(lambda est: est.get_pos().distancia(esd.get_pos()) \
+                       <= 500, estacions)
+    esd.set_transport(list(estacions))
+    return esd
 
 def match_dates(esd):
     pass
-    
+
 def search_criteria():
     args = parseArgs()
     evalFunctions = []
@@ -113,9 +110,15 @@ def search_criteria():
         search_dates = evaluateLiteral(args.date)
         evalFunctions.append(lambda e: SE.evaluate_dates(search_dates,
                                                          e.dates))
-    if args.metro:
-        lmetro = evaluateLiteral(args.metro)            
-        #evalFunctions.append(lambda e: SE.evaluate_metro())
+    if args.metro:                        
+        def tostr(transports):
+            trs = '';
+            for t in transports:
+                trs += str(t.num)
+            return trs
+        lmetro = evaluateLiteral(args.metro)
+        evalFunctions.append(lambda e: SE.evaluate(lmetro,
+                                                   tostr(e.get_transport())))
     return evalFunctions
 
 def matches_search(event, evalFunctions):
@@ -125,11 +128,15 @@ def matches_search(event, evalFunctions):
 def main():
     ad = FetchAdapter(url_esd, parse_esdeveniments)
     esdeveniments = ad.get_objects()
-    
+    ad = FetchAdapter(url_metro, parse_estacions)
+    estacions = ad.get_objects()
+    esdeveniments = map(lambda esd: search_metro(esd, estacions),
+                       esdeveniments)
     evaluation_functions = search_criteria()
     srch_esds = filter(lambda e: matches_search(e, evaluation_functions),
                       esdeveniments)
-    srch_esds_names = list(map(lambda e: e.classificacions, list(srch_esds)))
+    srch_esds_names = list(map(lambda e: list(map(lambda e: e.num, list(e.get_transport()))),
+                               list(srch_esds)))
     print(srch_esds_names)
     print(len(srch_esds_names))
     

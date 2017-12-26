@@ -23,9 +23,6 @@ def evaluate(lt, text):
 def evaluate_dates(search_dates, ev_dates):
     pass
 
-        
-        
-
 def evaluate_list(l, text):
     for elem in l:
         if isinstance(elem, str):
