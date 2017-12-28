@@ -22,6 +22,35 @@ from datetime import datetime
 url_esd = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
 url_metro = "http://opendata-ajuntament.barcelona.cat/resources/bcn/" + \
             "TRANSPORTS%20GEOXML.xml"
+            
+TAG_NOM_ESDEVENIMENT = 'nom'
+TAG_NOM_LLOC = 'nom'
+TAG_LLOC_SIMPLE = 'lloc_simple'
+TAG_ADRECA_SIMPLE = 'adreca_simple'
+TAG_CARRER = 'carrer'
+TAG_BARRI = 'barri'
+TAG_DISTRICTE = 'districte'
+TAG_DATA = 'data'
+TAG_DATA_PROPER = 'data_proper_acte'
+TAG_CLASSIFICACIONS = 'classificacions'
+TAG_NIVELL = 'nivell'
+TAG_COORDENADES = 'coordenades'
+TAG_MAPS = 'googleMaps'
+TAG_HORA_FI = 'hora_fi'
+ATTR_LAT = 'lat'
+ATTR_LON = 'lon'
+TAG_PARADA = 'Punt'
+TAG_NOM_METRO = 'Tooltip'
+TAG_POS_PARADA = 'Coord'
+TAG_LAT_PARADA = 'Latitud'
+TAG_LON_PARADA = 'Longitud'
+FORMAT_DATA_HORA = '%d/%m/%Y %H.%M'
+FORMAT_HORA = '%H.%M'
+EXPR_LM = 'L[0-9.]'
+
+esdeveniments_infantils = True
+
+
 
 def parseArgs():
     parser = argparse.ArgumentParser()
@@ -40,32 +69,33 @@ def evaluateLiteral(lit):
 # Funció que inclou la lógica relacionada amb les característiques de les dades
 def parse_esdeveniments(xmlSource):
     def build_event(acte):
-        nom = xmlu.safe_find(acte, ['nom'])
-        nom_lloc = xmlu.safe_find(acte, ['lloc_simple', 'nom'])
-        carrer = xmlu.safe_find(acte,
-                                ['lloc_simple', 'adreca_simple', 'carrer'])
-        barri = xmlu.safe_find(acte, ['lloc_simple', 'adreca_simple', 'barri'])
-        districte = xmlu.safe_find(acte, ['lloc_simple', 'adreca_simple', \
-                                     'districte'])
-        date_i_str = xmlu.safe_find(acte, ['data', 'data_proper_acte'])
-        hora_f_str = xmlu.safe_find(acte, ['data', 'hora_fi'])
-        data_i = datetime.strptime(date_i_str, '%d/%m/%Y %H.%M')
+        nom = xmlu.safe_find(acte, [TAG_NOM_ESDEVENIMENT])
+        nom_lloc = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_NOM_LLOC])
+        carrer = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
+                                       TAG_CARRER])
+        barri = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
+                                      TAG_BARRI])
+        districte = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
+                                          TAG_DISTRICTE])
+        date_i_str = xmlu.safe_find(acte, [TAG_DATA, TAG_DATA_PROPER])
+        hora_f_str = xmlu.safe_find(acte, [TAG_DATA, TAG_HORA_FI])
+        data_i = datetime.strptime(date_i_str, FORMAT_DATA_HORA)
             
         if not hora_f_str:
             data_f = data_i
         else:
-            hora_f = datetime.strptime(hora_f_str, '%H.%M')
+            hora_f = datetime.strptime(hora_f_str, FORMAT_HORA)
             data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)
         
-        classificacions = xmlu.safe_find(acte, ['classificacions'], 'node')
+        classificacions = xmlu.safe_find(acte, [TAG_CLASSIFICACIONS], 'node')
         cl_str = ''
-        for c in classificacions.iter('nivell'):
+        for c in classificacions.iter(TAG_NIVELL):
             cl_str += c.text
         
-        gmaps = xmlu.safe_find(acte, ['lloc_simple', 'adreca_simple',
-                                    'coordenades', 'googleMaps'], 'node')
+        gmaps = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
+                                    TAG_COORDENADES, TAG_MAPS], 'node')
         if not isinstance(gmaps, str):
-            posicio = GeoPos(gmaps.attrib['lat'], gmaps.attrib['lon'])
+            posicio = GeoPos(gmaps.attrib[ATTR_LAT], gmaps.attrib[ATTR_LON])
         else:
             posicio = GeoPos(0,0)
         return Esdeveniment(nom, nom_lloc, carrer, barri, districte, \
@@ -77,18 +107,18 @@ def parse_esdeveniments(xmlSource):
 
 def parse_estacions(xmlSource):
     def build_estacio(e):
-        nom = xmlu.safe_find(e, ['Tooltip'])
+        nom = xmlu.safe_find(e, [TAG_NOM_METRO])
         try:
-            num = re.search('L[0-9.]', nom).group(0)
+            num = re.search(EXPR_LM, nom).group(0)
         except AttributeError as ae:
             num = -1
-        lat = xmlu.safe_find(e, ['Coord', 'Latitud'])
-        lng = xmlu.safe_find(e, ['Coord', 'Longitud'])
+        lat = xmlu.safe_find(e, [TAG_POS_PARADA, TAG_LAT_PARADA])
+        lng = xmlu.safe_find(e, [TAG_POS_PARADA, TAG_LON_PARADA])
         pos = GeoPos(lat, lng)
         return Estacio(nom, num, pos)
         
     root = ET.fromstring(xmlSource)
-    estacions = root.iter('Punt')
+    estacions = root.iter(TAG_PARADA)
     return map(lambda e: build_estacio(e), estacions)
 
 def search_metro(esd, estacions):
@@ -118,6 +148,9 @@ def search_criteria():
         lmetro = evaluateLiteral(args.metro)
         evalFunctions.append(lambda e: SE.evaluate(lmetro,
                                                    tostr(e.get_transport())))
+    if esdeveniments_infantils:
+        pass
+        #evalFunctions.append(lambda e: SE.evaluate())
     return evalFunctions
 
 def matches_search(event, evalFunctions):
@@ -134,8 +167,7 @@ def main():
     evaluation_functions = search_criteria()
     srch_esds = filter(lambda e: matches_search(e, evaluation_functions),
                       esdeveniments)
-    srch_esds_names = list(map(lambda e: list(map(lambda e: e.num,
-                                                  list(e.get_transport()))),
+    srch_esds_names = list(map(lambda e: e.nom,
                                list(srch_esds)))
     print(srch_esds_names)
     print(len(srch_esds_names))

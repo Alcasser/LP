@@ -18,15 +18,17 @@ def evaluate(lt, text):
     elif isinstance(lt, tuple):
         return evaluate_tuple(lt, text)
     else:
+        lt = normalize(lt)
         return lt in text
 
 def evaluate_dates(search_dates, ev_dates):
-    print(ev_dates)
-    for date in search_dates:
-        if isinstance(date, tuple):
-            pass
-        else:
-            date = datetime.strptime(date, '%d/%m/%Y')
+    #print(ev_dates)
+    #for date in search_dates:
+    #    if isinstance(date, tuple):
+    #        pass
+    #    else:
+    #        date = datetime.strptime(date, '%d/%m/%Y')
+    return True
 
 def evaluate_list(l, text):
     for elem in l:
