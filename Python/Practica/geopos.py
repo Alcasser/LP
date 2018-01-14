@@ -5,10 +5,13 @@ Created on Sun Dec 24 21:16:02 2017
 
 @author: alcasser
 """
-from math import radians, cos, sin, sqrt, atan2
+from math import radians, cos, sin, sqrt, asin
 
 class GeoPos:
-    'Classe per a tractar una posició en lat, lng'
+    """
+    Classe per a tractar una posició en lat, lng.
+    Es calculen distàncies amb altres posicions amb la formula de Haversine
+    """
 
     radi_terra = 6371000
 
@@ -20,11 +23,10 @@ class GeoPos:
             self.lat = self.lng = 0
 
     def distancia(self, d2):
-         dif_lat = self.lat - d2.lat
-         dif_lng = self.lng - d2.lng
+         dif_lng = d2.lng - self.lng
+         dif_lat = d2.lat - self.lat 
          
-         p0 = sin(dif_lat/2)**2 + cos(d2.lng) * \
-              cos(self.lng)* sin(dif_lng/2)**2
-         c = 2*atan2(sqrt(p0), sqrt(1 - p0))
-         
+         p0 = sin(dif_lat/2)**2 + cos(self.lat) * \
+              cos(d2.lat)* sin(dif_lng/2)**2
+         c = 2 * asin(sqrt(p0))
          return GeoPos.radi_terra * c

@@ -8,14 +8,13 @@ Created on Sun Dec 24 14:47:58 2017
 
 class Estacio:
     'classe per a tractar estacions'
-    
+
     totalEstacions = 0
     
-    def __init__(self, nom, num, geo_pos):
-        self.nom = nom
+    def __init__(self, desc, tipus, estacio, num, geo_pos):
+        self.desc = desc
+        self.tipus = tipus
         self.num = num
+        self.estacio = estacio
         self.geo_pos = geo_pos
         self.totalEstacions += 1
-        
-    def get_pos(self):
-        return self.geo_pos

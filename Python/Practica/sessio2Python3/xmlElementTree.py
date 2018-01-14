@@ -24,7 +24,7 @@ for elem in root.findall('movie'):
 
 
 for elem in root.findall('movie'):
-    print(elem.attrib)
+    print(str(elem.attrib) + 'ep')
 
 
 # elements a nivell superior

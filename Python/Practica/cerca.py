@@ -6,50 +6,18 @@ Created on Thu Dec 21 16:03:14 2017
 @author: alcasser
 """
 
-from esdeveniment import Esdeveniment
 from fetch_adapter import FetchAdapter
-from estacio import Estacio
-from geopos import GeoPos
+from html_table_gen import HtmlTable
+from subprocess import call
+from datetime import datetime
 import search_evaluation_helpers as SE
-import xml_utils as xmlu
+import bcn_opendata_helpers as BCN
 import argparse
 import ast
-import re
-import xml.etree.ElementTree as ET
 import operator, functools
-from datetime import datetime
 
-url_esd = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
-url_metro = "http://opendata-ajuntament.barcelona.cat/resources/bcn/" + \
-            "TRANSPORTS%20GEOXML.xml"
-            
-TAG_NOM_ESDEVENIMENT = 'nom'
-TAG_NOM_LLOC = 'nom'
-TAG_LLOC_SIMPLE = 'lloc_simple'
-TAG_ADRECA_SIMPLE = 'adreca_simple'
-TAG_CARRER = 'carrer'
-TAG_BARRI = 'barri'
-TAG_DISTRICTE = 'districte'
-TAG_DATA = 'data'
-TAG_DATA_PROPER = 'data_proper_acte'
-TAG_CLASSIFICACIONS = 'classificacions'
-TAG_NIVELL = 'nivell'
-TAG_COORDENADES = 'coordenades'
-TAG_MAPS = 'googleMaps'
-TAG_HORA_FI = 'hora_fi'
-ATTR_LAT = 'lat'
-ATTR_LON = 'lon'
-TAG_PARADA = 'Punt'
-TAG_NOM_METRO = 'Tooltip'
-TAG_POS_PARADA = 'Coord'
-TAG_LAT_PARADA = 'Latitud'
-TAG_LON_PARADA = 'Longitud'
-FORMAT_DATA_HORA = '%d/%m/%Y %H.%M'
-FORMAT_HORA = '%H.%M'
-EXPR_LM = 'L[0-9.]'
-
+# per si es vol mirar amb tots els esdeveniments
 esdeveniments_infantils = True
-
 
 
 def parseArgs():
@@ -66,112 +34,94 @@ def parseArgs():
 def evaluateLiteral(lit):
     return ast.literal_eval(lit)
 
-# Funció que inclou la lógica relacionada amb les característiques de les dades
-def parse_esdeveniments(xmlSource):
-    def build_event(acte):
-        nom = xmlu.safe_find(acte, [TAG_NOM_ESDEVENIMENT])
-        nom_lloc = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_NOM_LLOC])
-        carrer = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                       TAG_CARRER])
-        barri = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                      TAG_BARRI])
-        districte = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                          TAG_DISTRICTE])
-        date_i_str = xmlu.safe_find(acte, [TAG_DATA, TAG_DATA_PROPER])
-        hora_f_str = xmlu.safe_find(acte, [TAG_DATA, TAG_HORA_FI])
-        data_i = datetime.strptime(date_i_str, FORMAT_DATA_HORA)
-            
-        if not hora_f_str:
-            data_f = data_i
-        else:
-            hora_f = datetime.strptime(hora_f_str, FORMAT_HORA)
-            data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)
-        
-        classificacions = xmlu.safe_find(acte, [TAG_CLASSIFICACIONS], 'node')
-        cl_str = ''
-        for c in classificacions.iter(TAG_NIVELL):
-            cl_str += c.text
-        
-        gmaps = xmlu.safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                    TAG_COORDENADES, TAG_MAPS], 'node')
-        if not isinstance(gmaps, str):
-            posicio = GeoPos(gmaps.attrib[ATTR_LAT], gmaps.attrib[ATTR_LON])
-        else:
-            posicio = GeoPos(0,0)
-        return Esdeveniment(nom, nom_lloc, carrer, barri, districte, \
-                            cl_str, data_i, data_f, posicio)
-        
-    root = ET.fromstring(xmlSource)
-    actes = root.find('*//actes')
-    return map(lambda a: build_event(a), actes)
-
-def parse_estacions(xmlSource):
-    def build_estacio(e):
-        nom = xmlu.safe_find(e, [TAG_NOM_METRO])
-        try:
-            num = re.search(EXPR_LM, nom).group(0)
-        except AttributeError as ae:
-            num = -1
-        lat = xmlu.safe_find(e, [TAG_POS_PARADA, TAG_LAT_PARADA])
-        lng = xmlu.safe_find(e, [TAG_POS_PARADA, TAG_LON_PARADA])
-        pos = GeoPos(lat, lng)
-        return Estacio(nom, num, pos)
-        
-    root = ET.fromstring(xmlSource)
-    estacions = root.iter(TAG_PARADA)
-    return map(lambda e: build_estacio(e), estacions)
-
-def search_metro(esd, estacions):
-    estacions = filter(lambda est: est.get_pos().distancia(esd.get_pos()) \
-                       <= 500, estacions)
-    esd.set_transport(list(estacions))
-    return esd
-
-def match_dates(esd):
-    pass
-
+# seguit de funcions que s'evaluaran per veure si l'esdeveniments s'ha de
+# mostrar a la taula
 def search_criteria():
     args = parseArgs()
     evalFunctions = []
+    evalFunctions.append(lambda e: len(e.transport) > 0)
+    # Esdeveniments planejats per l'any 9999 no es mostraran.
+    evalFunctions.append(lambda e: e.get_dates()[0].year != 9999)
+    if esdeveniments_infantils:
+        evalFunctions.append(lambda e: e.edat[0] >= 0 and e.edat[1] <= 12)
     if args.key:
         key_search = evaluateLiteral(args.key)
         evalFunctions.append(lambda e: SE.evaluate(key_search, e.info))
     if args.date:
         search_dates = evaluateLiteral(args.date)
+        if not isinstance(search_dates, list):
+            search_dates = [search_dates]
         evalFunctions.append(lambda e: SE.evaluate_dates(search_dates,
-                                                         e.dates))
+                                                         e.get_dates()))
     if args.metro:                        
         def tostr(transports):
-            t_nums = map(lambda t: str(t.num), transports)
-            trs = functools.reduce(operator.add, t_nums, '')
+            t_nums = map(lambda t: ' ' + str(t.num) + ' ', transports)
+            trs = functools.reduce(operator.add, t_nums, ' ')
             return trs
         lmetro = evaluateLiteral(args.metro)
         evalFunctions.append(lambda e: SE.evaluate(lmetro,
-                                                   tostr(e.get_transport())))
-    if esdeveniments_infantils:
-        pass
-        #evalFunctions.append(lambda e: SE.evaluate())
+                                                   tostr(e.transport[:5])))
     return evalFunctions
 
+# en el moment en que alguna de les funcions retorna false, la resta de
+# funcions no s'evaluen.
 def matches_search(event, evalFunctions):
-    results = map(lambda ev_f: ev_f(event), evalFunctions)
-    return functools.reduce(operator.and_, results, True)
+    return all(map(lambda ev_f: ev_f(event), evalFunctions))
 
-def main():
-    ad = FetchAdapter(url_esd, parse_esdeveniments)
-    esdeveniments = ad.get_objects()
-    ad = FetchAdapter(url_metro, parse_estacions)
-    estacions = ad.get_objects()
-    esdeveniments = map(lambda esd: search_metro(esd, estacions),
-                       esdeveniments)
-    evaluation_functions = search_criteria()
-    srch_esds = filter(lambda e: matches_search(e, evaluation_functions),
-                      esdeveniments)
-    srch_esds_names = list(map(lambda e: e.nom,
-                               list(srch_esds)))
-    print(srch_esds_names)
-    print(len(srch_esds_names))
+# nomes volem les estacions de metro, ordenades i a menys de 500 metres.
+# nomes les estacions (sense repetir pel fet de tenir diferents entrades).
+def search_metro(esd, estacions):
+    e_metro = filter(lambda est: est.tipus == 'METRO' and 
+                       esd.geo_pos.distancia(est.geo_pos) <= 500, estacions)
+    e_metro = sorted(e_metro,
+                       key = lambda est: est.geo_pos.distancia(esd.geo_pos))
+    parades_metro = {}
+    for e in e_metro:
+        key = e.num + e.estacio
+        if key not in parades_metro:
+            parades_metro[key] = e           
+    esd.transport = list(parades_metro.values())
+    return esd
+
+# es construeix la taula amb les dades que es volen mostrar i s'obre al
+# navegador
+def write_open_table(srch_esds):
+    tracta_transport = lambda esd: functools.reduce(operator.add,
+                         map(lambda t: t.desc + '\n', esd.transport[:5]), '')
+    tracta_edat = lambda esd: 'sense restricció' if esd.edat[0] == -1 else \
+                              'de {} a {} anys'.format(esd.edat[0],
+                                                      esd.edat[-1])
+    tracta_data = lambda data: data.strftime('%d/%m/%y, %H:%M') if \
+                                isinstance(data, datetime) else \
+                                data.strftime('%d/%m/%y')
+    esd_data = [['Nom', 'Lloc', 'Adreça', 'Inici', 'Final',
+               'Edat nens', 'Metro']]
+    esd_data += map(lambda e: [e.nom, e.nom_lloc, e.carrer,
+                               tracta_data(e.data_i), tracta_data(e.data_f),
+                               tracta_edat(e), tracta_transport(e)], srch_esds)
+    ht = HtmlTable(esd_data, 'Esdeveniments infantils')
+    ht.write_table()
+    call(['open', ht.file_name])
     
+def main():
+    # recuperem les dades de esdeveniments i estacions
+    ad = FetchAdapter(BCN.url_esd, BCN.parse_esdeveniments)
+    esdeveniments = ad.get_objects()
+    ad = FetchAdapter(BCN.url_metro, BCN.parse_estacions)
+    estacions = ad.get_objects()
+    
+    # busquem les estacions de metro de cada esdeveniment
+    esdeveniments = map(lambda esd: search_metro(esd, estacions),
+                        esdeveniments)
+    
+    # filtrem els esdeveniments que compleixen els criteris de cerca
+    evaluation_functions = search_criteria()
+    srch_esds = list(filter(lambda e: matches_search(e, evaluation_functions),
+                      esdeveniments))
+    # ordenem els esdeveniments per data (sol·licitada, o d'avui)
+    
+    # generem i mostrem la taula
+    write_open_table(srch_esds)
     
 if __name__ == "__main__":
     main()

@@ -7,14 +7,9 @@ Created on Thu Dec 21 16:03:14 2017
 """
 import urllib.request
 import hashlib
+from datetime import datetime
 
 class FetchAdapter:
-    '''
-    The intention of this class is to make the http requests, store the
-    results of the response and obtain a list of objects when
-    get_objects() is called. The objects are obtained reading the data and
-    using the parseObjectFunction
-    '''
         
     def __init__(self, url, parseObjectFunction, data_file_name = ''):
         self.url = url
@@ -30,10 +25,11 @@ class FetchAdapter:
         return source
     
     def __enc_file_name(self):
+        today = str(datetime.today().date())
         if not self.data_file_name:
-            file_name = self.url
+            file_name = self.url + today
         else:
-            file_name = self.data_file_name
+            file_name = self.data_file_name + today
         return hashlib.sha256(file_name.encode()).hexdigest() + '.cache'
         
     def __write_file(self, source):
