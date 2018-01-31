@@ -1,2 +1,0 @@
--Quan evalua
--ejersisio del my all xd

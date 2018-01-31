@@ -15,7 +15,7 @@ from esdeveniment import Esdeveniment
 url_esd = "http://w10.bcn.es/APPS/asiasiacache/peticioXmlAsia?id=199"
 url_metro = "http://opendata-ajuntament.barcelona.cat/resources/bcn/" + \
             "TRANSPORTS%20GEOXML.xml"
-            
+
 TAG_NOM_ESDEVENIMENT = 'nom'
 TAG_NOM_LLOC = 'nom'
 TAG_LLOC_SIMPLE = 'lloc_simple'
@@ -46,6 +46,7 @@ TIPUS_METRO = 'METRO'
 TIPUS_INDEX = 0
 ESTACIO_INDEX = 3
 
+
 def fix_edat(edat):
     if not edat:
         return (-1, -1)
@@ -56,9 +57,9 @@ def fix_edat(edat):
         return (vs[0], vs[-1], '+' + str(vs[-1]))
     else:
         return (vs[0], vs[-1])
-        
 
-def safe_find(node, names, mode = 'text'):
+
+def safe_find(node, names, mode='text'):
         i = 0
         while node and i < len(names):
             node = node.find(names[i])
@@ -71,28 +72,29 @@ def safe_find(node, names, mode = 'text'):
             return ''
         else:
             return node.text
-    
+
+
 def build_event(acte):
     nom = safe_find(acte, [TAG_NOM_ESDEVENIMENT])
     nom_lloc = safe_find(acte, [TAG_LLOC_SIMPLE, TAG_NOM_LLOC])
     carrer = safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                   TAG_CARRER])
+                              TAG_CARRER])
     barri = safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                  TAG_BARRI])
+                             TAG_BARRI])
     districte = safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                      TAG_DISTRICTE])
+                                 TAG_DISTRICTE])
     date_i_str = safe_find(acte, [TAG_DATA, TAG_DATA_PROPER])
     hora_f_str = safe_find(acte, [TAG_DATA, TAG_HORA_FI])
     data_i = datetime.strptime(date_i_str, FORMAT_DATA_HORA)
-        
+
     # Si resulta que l'esdeveniment no te hora final, es mostra el dia com
     # a data final.
     if not hora_f_str:
         data_f = data_i.date()
     else:
         hora_f = datetime.strptime(hora_f_str, FORMAT_HORA)
-        data_f = data_i.replace(hour = hora_f.hour, minute = hora_f.minute)
-    
+        data_f = data_i.replace(hour=hora_f.hour, minute=hora_f.minute)
+
     classificacions = safe_find(acte, [TAG_CLASSIFICACIONS], 'node')
     cl_str = ''
     edat_str = ''
@@ -100,16 +102,17 @@ def build_event(acte):
         if CODI_EDAT in c.attrib['codi']:
             edat_str += c.text
         cl_str += c.text + ' '
-    edat = fix_edat(edat_str)
 
+    edat = fix_edat(edat_str)
     gmaps = safe_find(acte, [TAG_LLOC_SIMPLE, TAG_ADRECA_SIMPLE,
-                                TAG_COORDENADES, TAG_MAPS], 'node')
+                             TAG_COORDENADES, TAG_MAPS], 'node')
     if not isinstance(gmaps, str):
         posicio = GeoPos(gmaps.attrib[ATTR_LAT], gmaps.attrib[ATTR_LON])
     else:
-        posicio = GeoPos(0,0)
-    return Esdeveniment(nom, nom_lloc, carrer, barri, districte, \
+        posicio = GeoPos(0, 0)
+    return Esdeveniment(nom, nom_lloc, carrer, barri, districte,
                         cl_str, data_i, data_f, posicio, edat)
+
 
 def build_estacio(e):
     desc = safe_find(e, [TAG_NOM_PARADA])
@@ -129,12 +132,14 @@ def build_estacio(e):
     pos = GeoPos(lat, lng)
     return Estacio(desc, tipus, estacio, num, pos)
 
-def parse_esdeveniments(xmlSource):     
+
+def parse_esdeveniments(xmlSource):
     root = ET.fromstring(xmlSource)
     actes = root.find('*//actes')
     return map(lambda a: build_event(a), actes)
 
-def parse_estacions(xmlSource):        
+
+def parse_estacions(xmlSource):
     root = ET.fromstring(xmlSource)
     estacions = root.iter(TAG_PARADA)
     return map(lambda e: build_estacio(e), estacions)
